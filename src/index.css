@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'IBM Plex Sans Arabic', 'Cairo', 'Inter', sans-serif;
+    direction: rtl;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: #F8F7FC;
+    color: #0F172A;
+    overflow-x: hidden;
+  }
+}
+
+/* Hide scrollbars cleanly on horizontal category/filter rows */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
