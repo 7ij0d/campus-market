@@ -234,17 +234,29 @@ export const StoreDetailsPage: React.FC = () => {
           <div className="flex items-center justify-center flex-wrap gap-3 mt-3">
             <span
               className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-extrabold ${
-                store.is_open
-                  ? 'bg-emerald-50 text-emerald-700'
-                  : 'bg-rose-50 text-rose-600'
+                store.visibility_status === 'pause_orders'
+                  ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                  : store.visibility_status === 'closed_temp' || !store.is_open
+                  ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                  : 'bg-emerald-50 text-emerald-700'
               }`}
             >
               <span
                 className={`w-2 h-2 rounded-full ${
-                  store.is_open ? 'bg-emerald-500' : 'bg-rose-500'
+                  store.visibility_status === 'pause_orders'
+                    ? 'bg-amber-500'
+                    : store.visibility_status === 'closed_temp' || !store.is_open
+                    ? 'bg-rose-500'
+                    : 'bg-emerald-500'
                 }`}
               />
-              <span>{store.is_open ? 'مفتوح الآن' : 'مغلق الآن'}</span>
+              <span>
+                {store.visibility_status === 'pause_orders'
+                  ? 'متوقف مؤقتاً عن الطلبات'
+                  : store.visibility_status === 'closed_temp' || !store.is_open
+                  ? 'مغلق مؤقتاً'
+                  : 'مفتوح الآن'}
+              </span>
             </span>
 
             <div className="flex items-center gap-1.5 text-xs bg-[#F8FAFC] border border-[#E5EAED] px-3.5 py-1 rounded-full">

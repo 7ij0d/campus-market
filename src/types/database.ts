@@ -68,6 +68,7 @@ export interface Store {
   delivery_fee_lyd: number;
   contact_phone: string;
   status: 'pending' | 'active' | 'suspended' | 'rejected';
+  visibility_status?: 'active' | 'pause_orders' | 'closed_temp' | 'hidden';
   is_demo: boolean;
   views_count?: number;
   created_at: string;
@@ -102,6 +103,10 @@ export interface Product {
   stock_quantity: number;
   is_active: boolean;
   is_available_for_sale: boolean;
+  status?: 'available' | 'out_of_stock' | 'depleted' | 'hidden' | 'draft';
+  colors?: string[];
+  sizes?: string[];
+  custom_options?: string[];
   sort_order: number;
   is_demo: boolean;
   created_at: string;
@@ -184,6 +189,8 @@ export interface Review {
   user_name_ar: string;
   rating: number;
   comment: string;
+  merchant_reply?: string;
+  merchant_replied_at?: string;
   is_flagged: boolean;
   is_approved: boolean;
   created_at: string;

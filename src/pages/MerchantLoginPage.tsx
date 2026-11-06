@@ -92,14 +92,51 @@ export const MerchantLoginPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Store Awning Graphic */}
-            <div className="w-24 h-24 mx-auto relative flex items-center justify-center mb-2">
-              <div className="w-20 h-20 rounded-2xl bg-[#EAF3F4] text-[#087E83] flex items-center justify-center shadow-inner">
-                <StoreIcon className="w-11 h-11 stroke-[1.8]" />
-              </div>
-              <span className="absolute -bottom-1 px-2.5 py-0.5 rounded-full bg-[#087E83] text-white text-[10px] font-extrabold uppercase tracking-wider shadow-xs">
-                Merchant
-              </span>
+            {/* Storefront & Campus Building Illustration */}
+            <div className="w-48 h-28 mx-auto relative flex items-center justify-center my-2">
+              <svg viewBox="0 0 200 110" className="w-full h-full drop-shadow-xs" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Background Campus Silhouette */}
+                <path d="M10 85V45L30 35L50 45V85H10Z" fill="#D7E9E8" />
+                <rect x="18" y="52" width="6" height="8" rx="1" fill="#FFFFFF" opacity="0.8" />
+                <rect x="36" y="52" width="6" height="8" rx="1" fill="#FFFFFF" opacity="0.8" />
+                <rect x="18" y="66" width="6" height="8" rx="1" fill="#FFFFFF" opacity="0.8" />
+                <rect x="36" y="66" width="6" height="8" rx="1" fill="#FFFFFF" opacity="0.8" />
+
+                {/* Classical University Building */}
+                <path d="M42 85V40L60 28L78 40V85H42Z" fill="#C5DFDE" />
+                <polygon points="60,28 42,40 78,40" fill="#B2D5D4" />
+                <line x1="48" y1="45" x2="48" y2="80" stroke="#FFFFFF" strokeWidth="2" opacity="0.7" />
+                <line x1="60" y1="45" x2="60" y2="80" stroke="#FFFFFF" strokeWidth="2" opacity="0.7" />
+                <line x1="72" y1="45" x2="72" y2="80" stroke="#FFFFFF" strokeWidth="2" opacity="0.7" />
+
+                {/* Trees in background */}
+                <circle cx="160" cy="55" r="14" fill="#CBE5E2" />
+                <circle cx="178" cy="50" r="16" fill="#B8DCD8" />
+                <rect x="158" y="68" width="4" height="17" fill="#9CBDB9" />
+                <rect x="176" y="64" width="4" height="21" fill="#8CAEA9" />
+
+                {/* Foreground Campus Store */}
+                <rect x="70" y="50" width="60" height="35" rx="3" fill="#FFFFFF" stroke="#087E83" strokeWidth="1.5" />
+                {/* Store Window */}
+                <rect x="98" y="58" width="24" height="18" rx="2" fill="#EAF5F4" stroke="#087E83" strokeWidth="1" />
+                <line x1="110" y1="58" x2="110" y2="76" stroke="#087E83" strokeWidth="1" strokeDasharray="1 1" />
+                {/* Store Door */}
+                <rect x="76" y="58" width="16" height="27" rx="1.5" fill="#F0F7F7" stroke="#087E83" strokeWidth="1" />
+                <circle cx="79" cy="72" r="1" fill="#087E83" />
+
+                {/* Striped Store Awning */}
+                <path d="M66 50C66 45 70 41 74 41H126C130 41 134 45 134 50L130 53H70L66 50Z" fill="#087E83" />
+                <path d="M68 53L70 41H78L75 53H68Z" fill="#06666A" />
+                <path d="M84 41H92L90 53H82L84 41Z" fill="#36A6A6" />
+                <path d="M98 41H106L104 53H96L98 41Z" fill="#06666A" />
+                <path d="M112 41H120L118 53H110L112 41Z" fill="#36A6A6" />
+                <path d="M126 41H132L128 53H124L126 41Z" fill="#06666A" />
+                {/* Scalloped Awning Edge */}
+                <path d="M68 53Q71 56 74 53Q77 56 80 53Q83 56 86 53Q89 56 92 53Q95 56 98 53Q101 56 104 53Q107 56 110 53Q113 56 116 53Q119 56 122 53Q125 56 128 53" stroke="#087E83" strokeWidth="2" fill="none" />
+
+                {/* Ground Line */}
+                <line x1="5" y1="85" x2="195" y2="85" stroke="#E5EAED" strokeWidth="2" strokeLinecap="round" />
+              </svg>
             </div>
 
             {/* Page Title & Subtitle matching the reference image */}

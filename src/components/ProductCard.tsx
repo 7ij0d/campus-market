@@ -25,7 +25,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const isFavorite = favoritesProductIds.includes(product.id);
   const discountPercent = getProductDiscountPercent(product);
   const store = showStoreName ? getStoreById(product.store_id) : undefined;
-  const isOutOfStock = !product.is_available_for_sale || product.stock_quantity <= 0;
+  const isOutOfStock =
+    !product.is_available_for_sale ||
+    product.stock_quantity <= 0 ||
+    (product.status !== undefined && product.status !== 'available');
 
   const handleQuickAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();

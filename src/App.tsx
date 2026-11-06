@@ -16,6 +16,7 @@ import { RegisterStorePage } from './pages/RegisterStorePage';
 import { MerchantDashboardPage } from './pages/MerchantDashboardPage';
 import { MerchantLoginPage } from './pages/MerchantLoginPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { AdminLoginPage } from './pages/AdminLoginPage';
 
 const ToastBanner: React.FC = () => {
   const { toastMessage } = useMarketplace();
@@ -57,10 +58,20 @@ export const App: React.FC = () => {
             <Route path="/account" element={<AccountPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/favorites" element={<FavoritesPage />} />
+            {/* Merchant Autonomous Interface Routes */}
             <Route path="/merchant" element={<MerchantDashboardPage />} />
+            <Route path="/merchant/dashboard" element={<MerchantDashboardPage />} />
+            <Route path="/merchant/login" element={<MerchantLoginPage />} />
             <Route path="/merchant-login" element={<MerchantLoginPage />} />
+
+            {/* Store Registration */}
             <Route path="/register-store" element={<RegisterStorePage />} />
+
+            {/* Super Admin Central Interface Routes */}
             <Route path="/admin" element={<AdminDashboardPage />} />
+            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+            <Route path="/admin/login" element={<AdminLoginPage />} />
+            <Route path="/admin-login" element={<AdminLoginPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AppNavigation>

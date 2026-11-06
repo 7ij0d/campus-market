@@ -132,6 +132,8 @@ export const INITIAL_USERS: User[] = [
   {
     id: 'user-super-admin',
     email: 'admin@campusmarket.ly',
+    username: 'admin',
+    password: 'admin123',
     phone: '0910000001',
     full_name: 'إدارة المنصة — CampusMarket',
     role: 'super_admin',

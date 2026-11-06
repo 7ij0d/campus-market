@@ -21,7 +21,7 @@ export const HomePage: React.FC = () => {
   const visibleStores = useMemo(() => {
     const q = headerSearchQuery.trim().toLowerCase();
     return stores
-      .filter((s) => s.status === 'active')
+      .filter((s) => s.status === 'active' && s.visibility_status !== 'hidden')
       .filter((s) => {
         if (!q) return true;
         return (

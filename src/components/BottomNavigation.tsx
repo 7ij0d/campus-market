@@ -39,6 +39,20 @@ export const AppNavigation: React.FC<{ children?: React.ReactNode }> = ({
     currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
   const isMerchant = currentUser?.role === 'merchant';
 
+  const isMerchantRoute = pathname.startsWith('/merchant');
+  const isAdminRoute = pathname.startsWith('/admin');
+  const isStandalonePanel = isMerchantRoute || isAdminRoute;
+
+  if (isStandalonePanel) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] text-[#18343B]" dir="rtl">
+        <main className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#18343B]" dir="rtl">
       {/* Main Top Header (Matches Presto Reference Image across Mobile, Tablet, Laptop) */}

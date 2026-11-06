@@ -67,6 +67,26 @@ interface MarketplaceContextType {
       loginUrl: string;
     };
   };
+  adminLogin: (data: { identifier: string; password: string }) => {
+    success: boolean;
+    error?: string;
+  };
+  merchantSelfUpdateStore: (data: {
+    name_ar?: string;
+    description_ar?: string;
+    activity_type_ar?: string;
+    location_inside_campus?: string;
+    contact_phone?: string;
+    email?: string;
+    logo_url?: string;
+    cover_url?: string;
+    username?: string;
+    store_code?: string;
+    new_password?: string;
+    visibility_status?: 'active' | 'pause_orders' | 'closed_temp' | 'hidden';
+  }) => { success: boolean; error?: string };
+  merchantReplyToReview: (reviewId: string, reply: string) => { success: boolean; error?: string };
+  updateStoreVisibility: (status: 'active' | 'pause_orders' | 'closed_temp' | 'hidden') => void;
   switchQuickAccount: (userId: string) => void;
   registerCustomer: (data: {
     full_name: string;
@@ -585,6 +605,178 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     );
     showToast('تم تحديث كلمة مرور متجرك بنجاح!', 'success');
     return { success: true };
+  };
+
+  const adminLogin = (data: { identifier: string; password: string }) => {
+    const cleanId = data.identifier.trim().toLowerCase();
+    const cleanPass = data.password.trim();
+
+    if (!cleanId || !cleanPass) {
+      return { success: false, error: 'يرجى إدخال اسم المستخدم وكلمة المرور' };
+    }
+
+    const foundAdmin = users.find(
+      (u) =>
+        (u.role === 'admin' || u.role === 'super_admin') &&
+        (u.email.toLowerCase() === cleanId || (u.username && u.username.toLowerCase() === cleanId))
+    );
+
+    if (!foundAdmin) {
+      return { success: false, error: 'بيانات الدخول غير صحيحة أو ليس لديك صلاحية إدارة المنصة.' };
+    }
+
+    if (!foundAdmin.is_active) {
+      return { success: false, error: 'تم تعطيل حساب المشرف هذا.' };
+    }
+
+    const validPass = foundAdmin.password || 'admin123';
+    if (cleanPass !== validPass) {
+      return { success: false, error: 'كلمة المرور غير صحيحة.' };
+    }
+
+    setCurrentUserId(foundAdmin.id);
+    logAudit('تسجيل دخول المشرف', 'user', foundAdmin.id, 'تم الدخول إلى لوحة الإدارة الرئيسية');
+    showToast(`مرحباً بك في لوحة الإدارة، ${foundAdmin.full_name}`, 'success');
+    return { success: true };
+  };
+
+  const merchantSelfUpdateStore = (data: {
+    name_ar?: string;
+    description_ar?: string;
+    activity_type_ar?: string;
+    location_inside_campus?: string;
+    contact_phone?: string;
+    email?: string;
+    logo_url?: string;
+    cover_url?: string;
+    username?: string;
+    store_code?: string;
+    new_password?: string;
+    visibility_status?: 'active' | 'pause_orders' | 'closed_temp' | 'hidden';
+  }) => {
+    if (!currentUser || currentUser.role !== 'merchant' || !currentUser.store_id) {
+      return { success: false, error: 'غير مصرح' };
+    }
+    const storeId = currentUser.store_id;
+    const store = stores.find((s) => s.id === storeId);
+    if (!store) return { success: false, error: 'المتجر غير موجود' };
+
+    // Validate username uniqueness if modified
+    if (data.username && data.username.trim()) {
+      const cleanU = data.username.trim().toLowerCase();
+      const conflict = users.find(
+        (u) => u.id !== currentUser.id && u.username && u.username.toLowerCase() === cleanU
+      );
+      if (conflict) {
+        return {
+          success: false,
+          error: 'اسم المستخدم هذا مستخدم بالفعل من قبل متجر آخر. يرجى اختيار اسم مستخدم مختلف.',
+        };
+      }
+    }
+
+    // Validate store_code uniqueness if modified
+    if (data.store_code && data.store_code.trim()) {
+      const cleanCode = data.store_code.trim().toUpperCase();
+      const conflictStore = stores.find(
+        (s) => s.id !== storeId && s.store_code && s.store_code.toUpperCase() === cleanCode
+      );
+      if (conflictStore) {
+        return {
+          success: false,
+          error: 'رمز المتجر هذا مسجل بالفعل لمتجر آخر. يرجى اختيار رمز متجر فريد.',
+        };
+      }
+    }
+
+    // Update store
+    setStores((prev) =>
+      prev.map((s) => {
+        if (s.id !== storeId) return s;
+        return {
+          ...s,
+          name_ar: data.name_ar !== undefined ? data.name_ar : s.name_ar,
+          name_en: data.name_ar !== undefined ? data.name_ar : s.name_en,
+          description_ar:
+            data.description_ar !== undefined ? data.description_ar : s.description_ar,
+          activity_type_ar:
+            data.activity_type_ar !== undefined ? data.activity_type_ar : s.activity_type_ar,
+          location_inside_campus:
+            data.location_inside_campus !== undefined
+              ? data.location_inside_campus
+              : s.location_inside_campus,
+          contact_phone:
+            data.contact_phone !== undefined ? data.contact_phone : s.contact_phone,
+          logo_url: data.logo_url !== undefined ? data.logo_url : s.logo_url,
+          cover_url: data.cover_url !== undefined ? data.cover_url : s.cover_url,
+          store_code:
+            data.store_code !== undefined ? data.store_code.trim().toUpperCase() : s.store_code,
+          visibility_status:
+            data.visibility_status !== undefined
+              ? data.visibility_status
+              : s.visibility_status,
+        };
+      })
+    );
+
+    // Update merchant user
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id !== currentUser.id) return u;
+        return {
+          ...u,
+          username:
+            data.username !== undefined ? data.username.trim().toLowerCase() : u.username,
+          email: data.email !== undefined ? data.email.trim() : u.email,
+          phone:
+            data.contact_phone !== undefined ? data.contact_phone.trim() : u.phone,
+          password: data.new_password ? data.new_password : u.password,
+          must_change_password: false,
+        };
+      })
+    );
+
+    logAudit(
+      'تعديل ذاتي لبيانات المتجر',
+      'store',
+      storeId,
+      `قام التاجر ${currentUser.full_name} بتحديث بيانات متجره`
+    );
+    showToast('تم حفظ وتحديث جميع بيانات متجرك بنجاح!', 'success');
+    return { success: true };
+  };
+
+  const merchantReplyToReview = (reviewId: string, reply: string) => {
+    if (!currentUser || currentUser.role !== 'merchant' || !currentUser.store_id) {
+      return { success: false, error: 'غير مصرح' };
+    }
+    const storeId = currentUser.store_id;
+    const rev = reviews.find((r) => r.id === reviewId);
+    if (!rev || rev.store_id !== storeId) {
+      return { success: false, error: 'لا يمكنك الرد على تقييم لمتجر آخر' };
+    }
+
+    const nowIso = new Date().toISOString();
+    setReviews((prev) =>
+      prev.map((r) =>
+        r.id === reviewId
+          ? { ...r, merchant_reply: reply.trim(), merchant_replied_at: nowIso }
+          : r
+      )
+    );
+    showToast('تم نشر رد المتجر على التقييم بنجاح', 'success');
+    return { success: true };
+  };
+
+  const updateStoreVisibility = (
+    status: 'active' | 'pause_orders' | 'closed_temp' | 'hidden'
+  ) => {
+    if (!currentUser || currentUser.role !== 'merchant' || !currentUser.store_id) return;
+    const storeId = currentUser.store_id;
+    setStores((prev) =>
+      prev.map((s) => (s.id === storeId ? { ...s, visibility_status: status } : s))
+    );
+    showToast('تم تحديث حالة ظهور المتجر', 'info');
   };
 
   const registerMerchantByInvite = (data: {
@@ -1374,12 +1566,30 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         return { success: false, error: 'لا يمكنك تعديل منتج يخص متجراً آخر!' };
       }
 
+      const prodStatus = productData.status || existing.status || 'available';
+      const isAvailable = prodStatus === 'available' && (productData.stock_quantity ?? existing.stock_quantity) > 0;
+      const isActive = prodStatus !== 'hidden' && prodStatus !== 'draft';
+
       setProducts((prev) =>
-        prev.map((p) => (p.id === productData.id ? ({ ...p, ...productData } as Product) : p))
+        prev.map((p) =>
+          p.id === productData.id
+            ? ({
+                ...p,
+                ...productData,
+                status: prodStatus,
+                is_available_for_sale: isAvailable,
+                is_active: isActive,
+              } as Product)
+            : p
+        )
       );
       showToast('تم تحديث بيانات المنتج بنجاح');
       return { success: true };
     } else {
+      const prodStatus = productData.status || 'available';
+      const isAvailable = prodStatus === 'available' && Number(productData.stock_quantity ?? 20) > 0;
+      const isActive = prodStatus !== 'hidden' && prodStatus !== 'draft';
+
       const newProd: Product = {
         id: `prod-${Date.now()}`,
         store_id: targetStoreId,
@@ -1396,8 +1606,12 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
             : ['https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=600&q=80'],
         variant_groups: productData.variant_groups || [],
         stock_quantity: Number(productData.stock_quantity ?? 20),
-        is_active: productData.is_active ?? true,
-        is_available_for_sale: productData.is_available_for_sale ?? true,
+        status: prodStatus,
+        colors: productData.colors || [],
+        sizes: productData.sizes || [],
+        custom_options: productData.custom_options || [],
+        is_active: isActive,
+        is_available_for_sale: isAvailable,
         sort_order: productData.sort_order ?? products.length + 1,
         is_demo: false,
         created_at: new Date().toISOString(),
@@ -1748,7 +1962,11 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         loginByEmail,
         merchantLogin,
         merchantChangePassword,
+        merchantSelfUpdateStore,
+        merchantReplyToReview,
+        updateStoreVisibility,
         adminIssueMerchantCredentials,
+        adminLogin,
         switchQuickAccount,
         registerCustomer,
         registerMerchantByInvite,
