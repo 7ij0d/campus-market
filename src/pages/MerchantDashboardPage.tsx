@@ -11,16 +11,14 @@ import {
   Trash2,
   CheckCircle2,
   XCircle,
-  Clock,
   Truck,
   Phone,
   ArrowRight,
-  AlertTriangle,
   Eye,
   EyeOff,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
-import { Product, OrderStatus } from '../types/database';
+import { Product } from '../types/database';
 import { STATUS_META } from './OrdersPage';
 
 type MerchantTab = 'overview' | 'orders' | 'products' | 'settings' | 'reports';
@@ -49,7 +47,6 @@ export const MerchantDashboardPage: React.FC = () => {
   const [rejectingOrderId, setRejectingOrderId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  // Product Form Modal State
   const [editingProduct, setEditingProduct] = useState<
     (Partial<Product> & { id?: string }) | null
   >(null);
@@ -60,7 +57,6 @@ export const MerchantDashboardPage: React.FC = () => {
     [stores, currentUser]
   );
 
-  // Strictly isolated products belonging ONLY to this merchant's store
   const myProducts = useMemo(() => {
     if (!merchantStore) return [];
     return products
@@ -68,7 +64,6 @@ export const MerchantDashboardPage: React.FC = () => {
       .sort((a, b) => a.sort_order - b.sort_order);
   }, [products, merchantStore]);
 
-  // Strictly isolated orders belonging ONLY to this merchant's store
   const myOrders = useMemo(() => {
     if (!merchantStore) return [];
     return orders
@@ -84,7 +79,6 @@ export const MerchantDashboardPage: React.FC = () => {
     return storeCategories.filter((sc) => sc.store_id === merchantStore.id);
   }, [storeCategories, merchantStore]);
 
-  // Real metrics computed strictly from database state
   const kpiStats = useMemo(() => {
     const totalOrders = myOrders.length;
     const newOrders = myOrders.filter((o) => o.status === 'pending_review').length;
@@ -127,13 +121,11 @@ export const MerchantDashboardPage: React.FC = () => {
     return getStoreMostOrderedProducts(merchantStore.id);
   }, [merchantStore, getStoreMostOrderedProducts]);
 
-  // Least moving products in this store
   const slowMovingProducts = useMemo(() => {
     const soldSet = new Set(bestSellingMetrics.map((m) => m.product.id));
     return myProducts.filter((p) => !soldSet.has(p.id));
   }, [myProducts, bestSellingMetrics]);
 
-  // Store Settings Form State
   const [storeNameEn, setStoreNameEn] = useState(merchantStore?.name_en || '');
   const [storeActivity, setStoreActivity] = useState(
     merchantStore?.activity_type_ar || ''
@@ -154,38 +146,46 @@ export const MerchantDashboardPage: React.FC = () => {
     merchantStore?.delivery_fee_lyd ?? 3
   );
 
-  // If currentUser is not a merchant, show role guard with instant 1-click switch to a merchant account
   if (!currentUser || currentUser.role !== 'merchant' || !merchantStore) {
     const merchantAccounts = users.filter((u) => u.role === 'merchant');
     return (
-      <div className="min-h-screen bg-[#F8F7FC] pb-24 px-4 pt-10">
-        <div className="max-w-lg mx-auto bg-white rounded-3xl p-6 border border-slate-100 shadow-card text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto">
+      <div className="py-10 px-4">
+        <div className="max-w-lg mx-auto bg-white rounded-3xl p-6 border border-[#E5EAED] shadow-card text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-[#EAF3F4] text-[#087E83] flex items-center justify-center mx-auto">
             <Briefcase className="w-7 h-7" />
           </div>
-          <h1 className="text-base font-extrabold text-slate-900">
-            هذه الصفحة مخصصة لأصحاب المتاجر فقط (Merchant RBAC Guard)
+          <h1 className="text-base font-extrabold text-[#18343B]">
+            لوحة تحكم المتجر
           </h1>
-          <p className="text-xs text-slate-500">
-            أنت مسجل حالياً بحساب ({currentUser?.full_name || 'زائر'}). يمكنك التبديل
-            الفوري لأي من حسابات المتاجر التالية لاختبار لوحة التاجر المعزولة:
+          <p className="text-xs text-[#74838A]">
+            هذه الصفحة مخصصة لأصحاب المتاجر المسجلين في المنصة.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-right">
-            {merchantAccounts.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => switchQuickAccount(m.id)}
-                className="p-3 rounded-xl border border-brand-200 bg-brand-50/50 hover:bg-brand-100 transition text-xs font-extrabold text-brand-900"
-              >
-                دخول كـ: {m.full_name}
-              </button>
-            ))}
-          </div>
+          {merchantAccounts.length > 0 ? (
+            <div className="grid grid-cols-1 gap-2 text-right">
+              {merchantAccounts.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => switchQuickAccount(m.id)}
+                  className="p-3 rounded-xl border border-[#DCEBED] bg-[#EAF3F4] hover:bg-[#DCEBED] transition text-xs font-extrabold text-[#087E83]"
+                >
+                  دخول كـ: {m.full_name}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => navigate('/account?become_merchant=1')}
+              className="w-full h-11 rounded-full bg-[#087E83] text-white text-xs font-extrabold"
+            >
+              تسجيل متجر جديد في CampusMarket
+            </button>
+          )}
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="text-xs font-bold text-slate-500 hover:underline pt-2 block mx-auto"
+            className="text-xs font-bold text-[#74838A] hover:underline pt-2 block mx-auto"
           >
             العودة للرئيسية
           </button>
@@ -207,10 +207,10 @@ export const MerchantDashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F7FC] pb-28">
+    <div className="space-y-5">
       {/* Top Merchant Header */}
-      <header className="sticky top-0 z-30 bg-slate-900 text-white border-b border-slate-800 shadow-md">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+      <header className="bg-[#18343B] text-white rounded-3xl p-4 sm:p-5 border border-[#087E83]/30 shadow-card">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -222,20 +222,19 @@ export const MerchantDashboardPage: React.FC = () => {
             </button>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold bg-brand-600 px-2 py-0.5 rounded-full">
+                <span className="text-[11px] font-bold bg-[#087E83] px-2.5 py-0.5 rounded-full">
                   لوحة التاجر
                 </span>
-                <h1 dir="ltr" className="font-en text-base font-extrabold">
-                  {merchantStore.name_en}
+                <h1 className="text-base font-extrabold">
+                  {merchantStore.name_ar || merchantStore.name_en}
                 </h1>
               </div>
-              <p className="text-[11px] text-slate-400">
-                {merchantStore.activity_type_ar} • صلاحيات معزولة لهذا المتجر فقط
+              <p className="text-[11px] text-[#B9DDE0] mt-0.5">
+                {merchantStore.activity_type_ar} • إدارة منتجات وطلبات المتجر
               </p>
             </div>
           </div>
 
-          {/* Open / Closed Live Toggle */}
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -244,13 +243,13 @@ export const MerchantDashboardPage: React.FC = () => {
               }
               className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold flex items-center gap-1.5 transition ${
                 merchantStore.is_open
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                  : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                  ? 'bg-[#087E83] text-white'
+                  : 'bg-white/10 text-[#B9DDE0]'
               }`}
             >
               <span
                 className={`w-2 h-2 rounded-full ${
-                  merchantStore.is_open ? 'bg-emerald-400' : 'bg-rose-400'
+                  merchantStore.is_open ? 'bg-[#F3C95B]' : 'bg-[#74838A]'
                 }`}
               />
               <span>
@@ -261,30 +260,30 @@ export const MerchantDashboardPage: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate(`/store/${merchantStore.id}`)}
-              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold"
+              className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold"
             >
-              معاينة متجري
+              معاينة المتجر
             </button>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="max-w-6xl mx-auto px-4 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-white/10">
+        <div className="mt-4 pt-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar border-t border-white/10">
           {(
             [
               { id: 'overview', label: 'نظرة عامة', icon: Briefcase },
               {
                 id: 'orders',
-                label: `الطلبات (${kpiStats.newOrders} جديد)`,
+                label: `الطلبات (${kpiStats.newOrders})`,
                 icon: ShoppingBag,
               },
               {
                 id: 'products',
-                label: `المنتجات (${myProducts.length})`,
+                label: `المنتجات والخدمات (${myProducts.length})`,
                 icon: Package,
               },
               { id: 'settings', label: 'إعدادات المتجر', icon: Settings },
-              { id: 'reports', label: 'التقارير والمبيعات', icon: BarChart3 },
+              { id: 'reports', label: 'التقارير', icon: BarChart3 },
             ] as const
           ).map((t) => {
             const Icon = t.icon;
@@ -294,10 +293,10 @@ export const MerchantDashboardPage: React.FC = () => {
                 key={t.id}
                 type="button"
                 onClick={() => setActiveTab(t.id)}
-                className={`px-4 py-3 text-xs font-extrabold flex items-center gap-1.5 whitespace-nowrap border-b-2 transition ${
+                className={`px-4 py-2 rounded-full text-xs font-extrabold flex items-center gap-1.5 whitespace-nowrap transition ${
                   active
-                    ? 'border-brand-400 text-white bg-white/5'
-                    : 'border-transparent text-slate-400 hover:text-white'
+                    ? 'bg-[#087E83] text-white'
+                    : 'text-[#B9DDE0] hover:text-white hover:bg-white/5'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -308,103 +307,68 @@ export const MerchantDashboardPage: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 pt-5 space-y-5">
-        {/* TAB 1: OVERVIEW DASHBOARD */}
+      <main className="space-y-5">
         {activeTab === 'overview' && (
           <div className="space-y-5">
-            {/* 8 Real KPI Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-card">
-                <span className="text-[11px] font-bold text-slate-400">
+              <div className="bg-white p-4 rounded-2xl border border-[#E5EAED] shadow-card">
+                <span className="text-[11px] font-bold text-[#74838A]">
                   إجمالي المبيعات المكتملة
                 </span>
-                <p className="text-xl font-extrabold text-brand-700 mt-1">
+                <p className="text-xl font-extrabold text-[#087E83] mt-1">
                   {kpiStats.totalRevenue} د.ل
                 </p>
               </div>
-              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-card">
-                <span className="text-[11px] font-bold text-slate-400">
-                  الطلبات الجديدة (قيد المراجعة)
+              <div className="bg-white p-4 rounded-2xl border border-[#E5EAED] shadow-card">
+                <span className="text-[11px] font-bold text-[#74838A]">
+                  الطلبات الجديدة
                 </span>
-                <p className="text-xl font-extrabold text-amber-600 mt-1">
+                <p className="text-xl font-extrabold text-[#18343B] mt-1">
                   {kpiStats.newOrders}
                 </p>
               </div>
-              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-card">
-                <span className="text-[11px] font-bold text-slate-400">
-                  طلبات قيد التجهيز والتوصيل
+              <div className="bg-white p-4 rounded-2xl border border-[#E5EAED] shadow-card">
+                <span className="text-[11px] font-bold text-[#74838A]">
+                  قيد التجهيز والتوصيل
                 </span>
-                <p className="text-xl font-extrabold text-blue-600 mt-1">
+                <p className="text-xl font-extrabold text-[#36A6A6] mt-1">
                   {kpiStats.preparingOrders}
                 </p>
               </div>
-              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-card">
-                <span className="text-[11px] font-bold text-slate-400">
-                  الطلبات المكتملة
+              <div className="bg-white p-4 rounded-2xl border border-[#E5EAED] shadow-card">
+                <span className="text-[11px] font-bold text-[#74838A]">
+                  المنتجات النشطة
                 </span>
-                <p className="text-xl font-extrabold text-emerald-600 mt-1">
-                  {kpiStats.completedCount} / {kpiStats.totalOrders}
-                </p>
-              </div>
-              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-card">
-                <span className="text-[11px] font-bold text-slate-400">
-                  المنتجات النشطة والمتاحة
-                </span>
-                <p className="text-xl font-extrabold text-slate-900 mt-1">
+                <p className="text-xl font-extrabold text-[#18343B] mt-1">
                   {kpiStats.activeProds}
-                </p>
-              </div>
-              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-card">
-                <span className="text-[11px] font-bold text-slate-400">
-                  منتجات غير متوفرة / نفدت
-                </span>
-                <p className="text-xl font-extrabold text-rose-600 mt-1">
-                  {kpiStats.outOfStockProds}
-                </p>
-              </div>
-              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-card">
-                <span className="text-[11px] font-bold text-slate-400">
-                  متوسط قيمة الطلب
-                </span>
-                <p className="text-xl font-extrabold text-slate-900 mt-1">
-                  {kpiStats.avgOrderValue} د.ل
-                </p>
-              </div>
-              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-card">
-                <span className="text-[11px] font-bold text-slate-400">
-                  أفضل منتج مبيعاً
-                </span>
-                <p className="text-sm font-extrabold text-brand-700 mt-1.5 truncate">
-                  {bestSellingMetrics[0]?.product.name_ar || 'لا توجد مبيعات بعد'}
                 </p>
               </div>
             </div>
 
-            {/* Best Selling Products in Store */}
-            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-card space-y-3">
+            <div className="bg-white rounded-3xl p-5 border border-[#E5EAED] shadow-card space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-extrabold text-slate-800">
-                  أفضل المنتجات مبيعاً في {merchantStore.name_en} (من الطلبات المكتملة)
+                <h2 className="text-sm font-extrabold text-[#18343B]">
+                  المنتجات الأكثر مبيعاً في المتجر
                 </h2>
                 <button
                   type="button"
                   onClick={() => setActiveTab('products')}
-                  className="text-xs font-bold text-brand-600 hover:underline"
+                  className="text-xs font-bold text-[#087E83] hover:underline"
                 >
                   إدارة المنتجات
                 </button>
               </div>
 
               {bestSellingMetrics.length === 0 ? (
-                <p className="text-xs text-slate-400 py-4 text-center">
-                  لا توجد طلبات مكتملة لاحتساب الأكثر مبيعاً حتى الآن.
+                <p className="text-xs text-[#74838A] py-6 text-center">
+                  لا توجد مبيعات مكتملة حتى الآن.
                 </p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {bestSellingMetrics.map(({ product, unitsSold, ordersCount }) => (
                     <div
                       key={product.id}
-                      className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-3"
+                      className="p-3 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] flex items-center justify-between gap-3"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <img
@@ -413,19 +377,19 @@ export const MerchantDashboardPage: React.FC = () => {
                           className="w-12 h-12 rounded-xl object-cover"
                         />
                         <div className="min-w-0">
-                          <p className="text-xs font-extrabold text-slate-900 truncate">
+                          <p className="text-xs font-extrabold text-[#18343B] truncate">
                             {product.name_ar}
                           </p>
-                          <p className="text-[11px] text-slate-500">
+                          <p className="text-[11px] text-[#74838A]">
                             {product.price_lyd} د.ل • المخزون: {product.stock_quantity}
                           </p>
                         </div>
                       </div>
                       <div className="text-left shrink-0">
-                        <span className="block text-xs font-extrabold text-brand-700">
+                        <span className="block text-xs font-extrabold text-[#087E83]">
                           {unitsSold} مباع
                         </span>
-                        <span className="text-[10px] text-slate-400">
+                        <span className="text-[10px] text-[#74838A]">
                           {ordersCount} طلبات
                         </span>
                       </div>
@@ -437,7 +401,6 @@ export const MerchantDashboardPage: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 2: ORDERS MANAGEMENT */}
         {activeTab === 'orders' && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
@@ -455,10 +418,10 @@ export const MerchantDashboardPage: React.FC = () => {
                   key={st.id}
                   type="button"
                   onClick={() => setOrderStatusFilter(st.id)}
-                  className={`h-9 px-3.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition ${
+                  className={`h-9 px-3.5 rounded-full text-xs font-extrabold whitespace-nowrap transition ${
                     orderStatusFilter === st.id
-                      ? 'bg-brand-600 text-white'
-                      : 'bg-white text-slate-600 border border-slate-200'
+                      ? 'bg-[#087E83] text-white'
+                      : 'bg-white text-[#74838A] border border-[#E5EAED]'
                   }`}
                 >
                   {st.label}
@@ -467,8 +430,8 @@ export const MerchantDashboardPage: React.FC = () => {
             </div>
 
             {filteredMerchantOrders.length === 0 ? (
-              <div className="bg-white rounded-2xl p-8 text-center text-xs text-slate-400 border border-slate-100">
-                لا توجد طلبات ضمن هذه الحالة.
+              <div className="bg-white rounded-3xl p-8 text-center text-xs text-[#74838A] border border-[#E5EAED]">
+                لا توجد طلبات حالياً.
               </div>
             ) : (
               <div className="space-y-3">
@@ -477,22 +440,22 @@ export const MerchantDashboardPage: React.FC = () => {
                   return (
                     <div
                       key={ord.id}
-                      className="bg-white rounded-2xl p-4 border border-slate-100 shadow-card space-y-3"
+                      className="bg-white rounded-3xl p-4 border border-[#E5EAED] shadow-card space-y-3"
                     >
-                      <div className="flex items-center justify-between flex-wrap gap-2 border-b border-slate-100 pb-2.5">
+                      <div className="flex items-center justify-between flex-wrap gap-2 border-b border-[#E5EAED] pb-2.5">
                         <div className="flex items-center gap-2">
                           <span
                             dir="ltr"
-                            className="font-en text-xs font-extrabold bg-brand-50 text-brand-700 px-2.5 py-1 rounded-lg"
+                            className="font-en text-xs font-extrabold bg-[#EAF3F4] text-[#087E83] px-2.5 py-1 rounded-lg"
                           >
                             #{ord.order_number}
                           </span>
-                          <span className="text-xs font-extrabold text-slate-900">
-                            الطالب: {ord.customer_name_ar}
+                          <span className="text-xs font-extrabold text-[#18343B]">
+                            {ord.customer_name_ar}
                           </span>
                           <a
                             href={`tel:${ord.customer_phone}`}
-                            className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-md"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#087E83] bg-[#EAF3F4] px-2 py-0.5 rounded-md"
                           >
                             <Phone className="w-3 h-3" />
                             <span dir="ltr">{ord.customer_phone}</span>
@@ -506,12 +469,11 @@ export const MerchantDashboardPage: React.FC = () => {
                         </span>
                       </div>
 
-                      {/* Order Items */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {ord.items.map((item) => (
                           <div
                             key={item.id}
-                            className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100 text-xs"
+                            className="flex items-center justify-between p-2 rounded-xl bg-[#F8FAFC] border border-[#E5EAED] text-xs"
                           >
                             <div className="flex items-center gap-2">
                               <img
@@ -520,49 +482,31 @@ export const MerchantDashboardPage: React.FC = () => {
                                 className="w-10 h-10 rounded-lg object-cover"
                               />
                               <div>
-                                <p className="font-extrabold text-slate-800">
+                                <p className="font-extrabold text-[#18343B]">
                                   {item.product_name_snapshot} × {item.quantity}
                                 </p>
-                                {Object.keys(item.selected_options_snapshot)
-                                  .length > 0 && (
-                                  <p className="text-[10px] text-slate-500">
-                                    {Object.entries(
-                                      item.selected_options_snapshot
-                                    )
-                                      .map(([k, v]) => `${k}: ${v}`)
-                                      .join(' | ')}
-                                  </p>
-                                )}
                               </div>
                             </div>
-                            <span className="font-extrabold">
+                            <span className="font-extrabold text-[#087E83]">
                               {item.line_total_lyd} د.ل
                             </span>
                           </div>
                         ))}
                       </div>
 
-                      <div className="flex items-center justify-between flex-wrap gap-2 text-xs text-slate-600 pt-1">
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold flex items-center gap-1">
-                            <Truck className="w-3.5 h-3.5 text-brand-600" />
-                            {ord.fulfillment_method === 'campus_delivery'
-                              ? `توصيل إلى: ${ord.campus_location_ar} (${ord.pickup_point_ar})`
-                              : 'استلام مباشر من المتجر'}
-                          </span>
-                          {ord.customer_note && (
-                            <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md font-semibold">
-                              ملاحظة: {ord.customer_note}
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-sm font-extrabold text-slate-900">
+                      <div className="flex items-center justify-between flex-wrap gap-2 text-xs text-[#74838A] pt-1">
+                        <span className="font-bold flex items-center gap-1">
+                          <Truck className="w-3.5 h-3.5 text-[#087E83]" />
+                          {ord.fulfillment_method === 'campus_delivery'
+                            ? `توصيل إلى: ${ord.campus_location_ar} (${ord.pickup_point_ar})`
+                            : 'استلام مباشر من المتجر'}
+                        </span>
+                        <span className="text-sm font-extrabold text-[#18343B]">
                           الإجمالي: {ord.total_lyd} د.ل
                         </span>
                       </div>
 
-                      {/* Merchant Status Action Buttons */}
-                      <div className="flex items-center justify-end flex-wrap gap-2 pt-2 border-t border-slate-100">
+                      <div className="flex items-center justify-end flex-wrap gap-2 pt-2 border-t border-[#E5EAED]">
                         {ord.status === 'pending_review' && (
                           <>
                             <button
@@ -574,7 +518,7 @@ export const MerchantDashboardPage: React.FC = () => {
                                   'تم قبول الطلب من قبل المتجر'
                                 )
                               }
-                              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center gap-1"
+                              className="px-4 py-1.5 rounded-full bg-[#087E83] text-white text-xs font-extrabold flex items-center gap-1"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               <span>قبول الطلب</span>
@@ -582,10 +526,10 @@ export const MerchantDashboardPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setRejectingOrderId(ord.id)}
-                              className="px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-extrabold flex items-center gap-1"
+                              className="px-4 py-1.5 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-[#74838A] text-xs font-extrabold flex items-center gap-1"
                             >
                               <XCircle className="w-3.5 h-3.5" />
-                              <span>رفض الطلب مع ذكر السبب</span>
+                              <span>اعتذار عن الطلب</span>
                             </button>
                           </>
                         )}
@@ -600,7 +544,7 @@ export const MerchantDashboardPage: React.FC = () => {
                                 'بدأ المتجر في تجهيز الطلب'
                               )
                             }
-                            className="px-3.5 py-1.5 rounded-xl bg-brand-600 text-white text-xs font-extrabold"
+                            className="px-4 py-1.5 rounded-full bg-[#087E83] text-white text-xs font-extrabold"
                           >
                             بدء التجهيز
                           </button>
@@ -617,9 +561,9 @@ export const MerchantDashboardPage: React.FC = () => {
                                   'الطلب جاهز للاستلام من المتجر'
                                 )
                               }
-                              className="px-3.5 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-extrabold"
+                              className="px-4 py-1.5 rounded-full bg-[#087E83] text-white text-xs font-extrabold"
                             >
-                              تحديد كـ جاهز للاستلام
+                              جاهز للاستلام
                             </button>
                             {ord.fulfillment_method === 'campus_delivery' && (
                               <button
@@ -631,9 +575,9 @@ export const MerchantDashboardPage: React.FC = () => {
                                     'خرج المندوب لتوصيل الطلب داخل الكلية'
                                   )
                                 }
-                                className="px-3.5 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-extrabold"
+                                className="px-4 py-1.5 rounded-full bg-[#36A6A6] text-white text-xs font-extrabold"
                               >
-                                خرج للتوصيل داخل الكلية
+                                خرج للتوصيل
                               </button>
                             )}
                           </>
@@ -650,22 +594,21 @@ export const MerchantDashboardPage: React.FC = () => {
                                 'تم تسليم الطلب وإتمام العملية بنجاح'
                               )
                             }
-                            className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold"
+                            className="px-4 py-1.5 rounded-full bg-[#087E83] text-white text-xs font-extrabold"
                           >
-                            تأكيد التسليم وإكمال الطلب ✅
+                            تأكيد التسليم وإكمال الطلب
                           </button>
                         )}
                       </div>
 
-                      {/* Inline Reject Reason Input */}
                       {rejectingOrderId === ord.id && (
-                        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-2">
+                        <div className="p-3 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] flex items-center gap-2">
                           <input
                             type="text"
                             value={rejectionReason}
                             onChange={(e) => setRejectionReason(e.target.value)}
-                            placeholder="اكتب سبب رفض الطلب لإشعار الطالب..."
-                            className="flex-1 h-9 px-3 rounded-lg bg-white border border-rose-200 text-xs"
+                            placeholder="اكتب سبب الاعتذار لإشعار الطالب..."
+                            className="flex-1 h-9 px-3 rounded-xl bg-white border border-[#E5EAED] text-xs"
                           />
                           <button
                             type="button"
@@ -679,14 +622,14 @@ export const MerchantDashboardPage: React.FC = () => {
                               setRejectingOrderId(null);
                               setRejectionReason('');
                             }}
-                            className="px-3 h-9 rounded-lg bg-rose-600 text-white text-xs font-extrabold"
+                            className="px-3 h-9 rounded-xl bg-[#18343B] text-white text-xs font-extrabold"
                           >
-                            تأكيد الرفض
+                            تأكيد
                           </button>
                           <button
                             type="button"
                             onClick={() => setRejectingOrderId(null)}
-                            className="px-2.5 h-9 rounded-lg bg-white text-slate-600 text-xs font-bold"
+                            className="px-2.5 h-9 rounded-xl bg-white text-[#74838A] text-xs font-bold"
                           >
                             إلغاء
                           </button>
@@ -700,18 +643,16 @@ export const MerchantDashboardPage: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 3: PRODUCTS & INVENTORY MANAGEMENT */}
         {activeTab === 'products' && (
           <div className="space-y-4">
-            {/* Internal Categories Bar + Add Product Button */}
-            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-card flex items-center justify-between flex-wrap gap-3">
+            <div className="bg-white rounded-3xl p-4 border border-[#E5EAED] shadow-card flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-2 flex-wrap">
                 <input
                   type="text"
                   value={newInternalCatName}
                   onChange={(e) => setNewInternalCatName(e.target.value)}
                   placeholder="اسم تصنيف داخلي جديد..."
-                  className="h-9 px-3 rounded-xl border border-slate-200 text-xs"
+                  className="h-9 px-3 rounded-xl border border-[#E5EAED] text-xs"
                 />
                 <button
                   type="button"
@@ -720,7 +661,7 @@ export const MerchantDashboardPage: React.FC = () => {
                     addMerchantStoreCategory(newInternalCatName);
                     setNewInternalCatName('');
                   }}
-                  className="h-9 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold"
+                  className="h-9 px-3 rounded-xl bg-[#EAF3F4] text-[#087E83] text-xs font-bold"
                 >
                   + إضافة تصنيف للمتجر
                 </button>
@@ -745,151 +686,146 @@ export const MerchantDashboardPage: React.FC = () => {
                     is_available_for_sale: true,
                   })
                 }
-                className="h-10 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs"
+                className="h-10 px-5 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs"
               >
                 <Plus className="w-4 h-4" />
-                <span>إضافة منتج جديد</span>
+                <span>إضافة منتج أو خدمة</span>
               </button>
             </div>
 
-            {/* Products Table / Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {myProducts.map((prod) => (
-                <div
-                  key={prod.id}
-                  className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-card flex items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <img
-                      src={prod.images[0]}
-                      alt={prod.name_ar}
-                      className="w-16 h-16 rounded-xl object-cover shrink-0 bg-slate-100"
-                    />
-                    <div className="min-w-0 space-y-0.5">
-                      <div className="flex items-center gap-1.5">
-                        <h3 className="text-xs font-extrabold text-slate-900 truncate">
-                          {prod.name_ar}
-                        </h3>
-                        {!prod.is_active && (
-                          <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">
-                            مخفي
-                          </span>
-                        )}
+            {myProducts.length === 0 ? (
+              <div className="bg-white rounded-3xl p-8 text-center text-xs text-[#74838A] border border-[#E5EAED]">
+                لا توجد منتجات حالياً في متجرك. اضغط على "إضافة منتج أو خدمة" للبدء.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {myProducts.map((prod) => (
+                  <div
+                    key={prod.id}
+                    className="bg-white rounded-2xl p-3.5 border border-[#E5EAED] shadow-card flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img
+                        src={prod.images[0]}
+                        alt={prod.name_ar}
+                        className="w-16 h-16 rounded-xl object-cover shrink-0 bg-[#F8FAFC]"
+                      />
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="text-xs font-extrabold text-[#18343B] truncate">
+                            {prod.name_ar}
+                          </h3>
+                          {!prod.is_active && (
+                            <span className="text-[10px] bg-[#F8FAFC] text-[#74838A] px-2 py-0.5 rounded-full font-bold">
+                              مخفي
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-extrabold text-[#087E83]">
+                          {prod.price_lyd} د.ل{' '}
+                          {prod.old_price_lyd && (
+                            <span className="text-[10px] text-[#74838A] line-through">
+                              {prod.old_price_lyd} د.ل
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-[11px] font-bold text-[#74838A]">
+                          المخزون المتاح: {prod.stock_quantity}
+                        </p>
                       </div>
-                      <p className="text-xs font-extrabold text-brand-700">
-                        {prod.price_lyd} د.ل{' '}
-                        {prod.old_price_lyd && (
-                          <span className="text-[10px] text-slate-400 line-through">
-                            {prod.old_price_lyd} د.ل
-                          </span>
-                        )}
-                      </p>
-                      <p
-                        className={`text-[11px] font-bold ${
-                          prod.stock_quantity > 5
-                            ? 'text-emerald-600'
-                            : 'text-rose-600'
-                        }`}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          saveMerchantProduct({
+                            id: prod.id,
+                            is_active: !prod.is_active,
+                          })
+                        }
+                        className="w-8 h-8 rounded-lg bg-[#F8FAFC] flex items-center justify-center text-[#74838A]"
                       >
-                        المخزون المتاح: {prod.stock_quantity} قطعة
-                      </p>
+                        {prod.is_active ? (
+                          <Eye className="w-4 h-4" />
+                        ) : (
+                          <EyeOff className="w-4 h-4" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingProduct(prod)}
+                        className="w-8 h-8 rounded-lg bg-[#EAF3F4] flex items-center justify-center text-[#087E83]"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteMerchantProduct(prod.id)}
+                        className="w-8 h-8 rounded-lg bg-[#F8FAFC] flex items-center justify-center text-[#74838A]"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        saveMerchantProduct({
-                          id: prod.id,
-                          is_active: !prod.is_active,
-                        })
-                      }
-                      title={prod.is_active ? 'إخفاء المنتج' : 'إظهار المنتج'}
-                      className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600"
-                    >
-                      {prod.is_active ? (
-                        <Eye className="w-4 h-4" />
-                      ) : (
-                        <EyeOff className="w-4 h-4" />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingProduct(prod)}
-                      title="تعديل المنتج"
-                      className="w-8 h-8 rounded-lg bg-brand-50 hover:bg-brand-100 flex items-center justify-center text-brand-700"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteMerchantProduct(prod.id)}
-                      title="حذف المنتج"
-                      className="w-8 h-8 rounded-lg bg-rose-50 hover:bg-rose-100 flex items-center justify-center text-rose-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* TAB 4: STORE SETTINGS */}
         {activeTab === 'settings' && (
-          <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-card max-w-2xl space-y-4">
-            <h2 className="text-sm font-extrabold text-slate-900 border-b border-slate-100 pb-2.5">
+          <div className="bg-white rounded-3xl p-5 border border-[#E5EAED] shadow-card max-w-2xl space-y-4">
+            <h2 className="text-sm font-extrabold text-[#18343B] border-b border-[#E5EAED] pb-2.5">
               إدارة معلومات وإعدادات المتجر
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">
-                  اسم المتجر (بالإنجليزية)
+                <label className="block text-xs font-bold text-[#74838A] mb-1">
+                  اسم المتجر
                 </label>
                 <input
                   type="text"
                   value={storeNameEn}
                   onChange={(e) => setStoreNameEn(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs font-en"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">
+                <label className="block text-xs font-bold text-[#74838A] mb-1">
                   نوع النشاط
                 </label>
                 <input
                   type="text"
                   value={storeActivity}
                   onChange={(e) => setStoreActivity(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-600 mb-1">
+                <label className="block text-xs font-bold text-[#74838A] mb-1">
                   وصف المتجر
                 </label>
                 <textarea
                   rows={2}
                   value={storeDesc}
                   onChange={(e) => setStoreDesc(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-slate-200 text-xs"
+                  className="w-full p-3 rounded-xl border border-[#E5EAED] text-xs"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">
+                <label className="block text-xs font-bold text-[#74838A] mb-1">
                   الموقع داخل الكلية
                 </label>
                 <input
                   type="text"
                   value={storeLoc}
                   onChange={(e) => setStoreLoc(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">
+                <label className="block text-xs font-bold text-[#74838A] mb-1">
                   ساعات العمل الرسمية
                 </label>
                 <input
@@ -897,11 +833,11 @@ export const MerchantDashboardPage: React.FC = () => {
                   dir="ltr"
                   value={storeHours}
                   onChange={(e) => setStoreHours(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs font-en"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">
+                <label className="block text-xs font-bold text-[#74838A] mb-1">
                   رقم التواصل
                 </label>
                 <input
@@ -909,11 +845,11 @@ export const MerchantDashboardPage: React.FC = () => {
                   dir="ltr"
                   value={storePhone}
                   onChange={(e) => setStorePhone(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs font-en"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">
+                <label className="block text-xs font-bold text-[#74838A] mb-1">
                   رسوم التوصيل داخل الكلية (د.ل)
                 </label>
                 <input
@@ -921,7 +857,7 @@ export const MerchantDashboardPage: React.FC = () => {
                   min={0}
                   value={storeDeliveryFee}
                   onChange={(e) => setStoreDeliveryFee(Number(e.target.value))}
-                  className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                 />
               </div>
             </div>
@@ -931,6 +867,7 @@ export const MerchantDashboardPage: React.FC = () => {
               onClick={() =>
                 updateMerchantStoreInfo({
                   name_en: storeNameEn,
+                  name_ar: storeNameEn,
                   activity_type_ar: storeActivity,
                   description_ar: storeDesc,
                   location_inside_campus: storeLoc,
@@ -939,86 +876,80 @@ export const MerchantDashboardPage: React.FC = () => {
                   delivery_fee_lyd: storeDeliveryFee,
                 })
               }
-              className="px-6 h-10 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-extrabold"
+              className="px-6 h-10 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold"
             >
               حفظ تعديلات المتجر
             </button>
           </div>
         )}
 
-        {/* TAB 5: MERCHANT REPORTS */}
         {activeTab === 'reports' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-card space-y-3">
-                <h3 className="text-sm font-extrabold text-slate-800">
-                  المنتجات الأكثر مبيعاً (حسب الكميات المباعة فعلياً)
-                </h3>
-                {bestSellingMetrics.length === 0 ? (
-                  <p className="text-xs text-slate-400">لا توجد بيانات مبيعات بعد.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {bestSellingMetrics.map((m, idx) => (
-                      <div
-                        key={m.product.id}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 text-xs"
-                      >
-                        <span className="font-bold text-slate-800">
-                          {idx + 1}. {m.product.name_ar}
-                        </span>
-                        <span className="font-extrabold text-brand-700">
-                          {m.unitsSold} وحدة ({m.unitsSold * m.product.price_lyd} د.ل)
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white rounded-3xl p-4 border border-[#E5EAED] shadow-card space-y-3">
+              <h3 className="text-sm font-extrabold text-[#18343B]">
+                المنتجات الأكثر مبيعاً
+              </h3>
+              {bestSellingMetrics.length === 0 ? (
+                <p className="text-xs text-[#74838A]">لا توجد بيانات مبيعات بعد.</p>
+              ) : (
+                <div className="space-y-2">
+                  {bestSellingMetrics.map((m, idx) => (
+                    <div
+                      key={m.product.id}
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-[#F8FAFC] text-xs"
+                    >
+                      <span className="font-bold text-[#18343B]">
+                        {idx + 1}. {m.product.name_ar}
+                      </span>
+                      <span className="font-extrabold text-[#087E83]">
+                        {m.unitsSold} وحدة ({m.unitsSold * m.product.price_lyd} د.ل)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-card space-y-3">
-                <h3 className="text-sm font-extrabold text-slate-800">
-                  المنتجات الأقل حركة
-                </h3>
-                {slowMovingProducts.length === 0 ? (
-                  <p className="text-xs text-emerald-600 font-bold">
-                    جميع منتجاتك حققت مبيعات نشطة!
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {slowMovingProducts.map((p) => (
-                      <div
-                        key={p.id}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 text-xs"
-                      >
-                        <span className="font-bold text-slate-700">{p.name_ar}</span>
-                        <span className="text-slate-400">
-                          0 مبيعات مكتملة • المخزون: {p.stock_quantity}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+            <div className="bg-white rounded-3xl p-4 border border-[#E5EAED] shadow-card space-y-3">
+              <h3 className="text-sm font-extrabold text-[#18343B]">
+                المنتجات الأقل حركة
+              </h3>
+              {slowMovingProducts.length === 0 ? (
+                <p className="text-xs text-[#74838A]">لا توجد بيانات حالياً.</p>
+              ) : (
+                <div className="space-y-2">
+                  {slowMovingProducts.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-[#F8FAFC] text-xs"
+                    >
+                      <span className="font-bold text-[#18343B]">{p.name_ar}</span>
+                      <span className="text-[#74838A]">
+                        المخزون: {p.stock_quantity}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
       </main>
 
-      {/* ADD / EDIT PRODUCT MODAL */}
       {editingProduct && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-[#18343B]/50 backdrop-blur-xs flex items-center justify-center p-4">
           <form
             onSubmit={handleSaveProductSubmit}
-            className="bg-white w-full max-w-lg rounded-3xl p-5 space-y-3.5 shadow-xl max-h-[90vh] overflow-y-auto"
+            className="bg-white w-full max-w-lg rounded-3xl p-5 space-y-3.5 shadow-xl max-h-[90vh] overflow-y-auto border border-[#E5EAED]"
           >
-            <h3 className="text-base font-extrabold text-slate-900">
-              {editingProduct.id ? 'تعديل بيانات المنتج' : 'إضافة منتج جديد للمتجر'}
+            <h3 className="text-base font-extrabold text-[#18343B]">
+              {editingProduct.id ? 'تعديل بيانات العنصر' : 'إضافة منتج أو خدمة للمتجر'}
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  اسم المنتج (بالعربية)
+                <label className="block text-xs font-bold text-[#18343B] mb-1">
+                  اسم المنتج / الخدمة
                 </label>
                 <input
                   type="text"
@@ -1027,11 +958,11 @@ export const MerchantDashboardPage: React.FC = () => {
                   onChange={(e) =>
                     setEditingProduct({ ...editingProduct, name_ar: e.target.value })
                   }
-                  className="w-full h-9 px-3 rounded-xl border border-slate-200 text-xs"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-[#18343B] mb-1">
                   التصنيف الداخلي بالمتجر
                 </label>
                 <select
@@ -1042,7 +973,7 @@ export const MerchantDashboardPage: React.FC = () => {
                       store_category_id: e.target.value,
                     })
                   }
-                  className="w-full h-9 px-3 rounded-xl border border-slate-200 text-xs bg-white"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs bg-white"
                 >
                   <option value="">بدون تصنيف فرعي</option>
                   {myInternalCategories.map((sc) => (
@@ -1053,7 +984,7 @@ export const MerchantDashboardPage: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-[#18343B] mb-1">
                   السعر الحالي (د.ل)
                 </label>
                 <input
@@ -1067,12 +998,12 @@ export const MerchantDashboardPage: React.FC = () => {
                       price_lyd: Number(e.target.value),
                     })
                   }
-                  className="w-full h-9 px-3 rounded-xl border border-slate-200 text-xs"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  السعر قبل الخصم (اختياري لتفعيل عرض)
+                <label className="block text-xs font-bold text-[#18343B] mb-1">
+                  السعر قبل الخصم (اختياري للعروض الخاصة)
                 </label>
                 <input
                   type="number"
@@ -1087,12 +1018,12 @@ export const MerchantDashboardPage: React.FC = () => {
                     })
                   }
                   placeholder="اتركه فارغاً إن لم يوجد خصم"
-                  className="w-full h-9 px-3 rounded-xl border border-slate-200 text-xs"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  الكمية المتوفرة في المخزون
+                <label className="block text-xs font-bold text-[#18343B] mb-1">
+                  الكمية المتوفرة
                 </label>
                 <input
                   type="number"
@@ -1105,22 +1036,22 @@ export const MerchantDashboardPage: React.FC = () => {
                       stock_quantity: Number(e.target.value),
                     })
                   }
-                  className="w-full h-9 px-3 rounded-xl border border-slate-200 text-xs"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  القسم العام في المنصة
+                <label className="block text-xs font-bold text-[#18343B] mb-1">
+                  القسم في المنصة
                 </label>
                 <select
-                  value={editingProduct.category_id || 'cat-food'}
+                  value={editingProduct.category_id || 'cat-services'}
                   onChange={(e) =>
                     setEditingProduct({
                       ...editingProduct,
                       category_id: e.target.value,
                     })
                   }
-                  className="w-full h-9 px-3 rounded-xl border border-slate-200 text-xs bg-white"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs bg-white"
                 >
                   {categories
                     .filter((c) => c.id !== 'cat-all')
@@ -1132,8 +1063,8 @@ export const MerchantDashboardPage: React.FC = () => {
                 </select>
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  رابط صورة المنتج
+                <label className="block text-xs font-bold text-[#18343B] mb-1">
+                  رابط الصورة
                 </label>
                 <input
                   type="url"
@@ -1145,12 +1076,12 @@ export const MerchantDashboardPage: React.FC = () => {
                       images: [e.target.value],
                     })
                   }
-                  className="w-full h-9 px-3 rounded-xl border border-slate-200 text-xs font-en"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  وصف المنتج
+                <label className="block text-xs font-bold text-[#18343B] mb-1">
+                  الوصف
                 </label>
                 <textarea
                   rows={2}
@@ -1162,7 +1093,7 @@ export const MerchantDashboardPage: React.FC = () => {
                       description_ar: e.target.value,
                     })
                   }
-                  className="w-full p-2.5 rounded-xl border border-slate-200 text-xs"
+                  className="w-full p-2.5 rounded-xl border border-[#E5EAED] text-xs"
                 />
               </div>
             </div>
@@ -1170,14 +1101,14 @@ export const MerchantDashboardPage: React.FC = () => {
             <div className="flex items-center gap-2 pt-2">
               <button
                 type="submit"
-                className="flex-1 h-10 rounded-xl bg-brand-600 text-white text-xs font-extrabold"
+                className="flex-1 h-10 rounded-full bg-[#087E83] text-white text-xs font-extrabold"
               >
-                حفظ المنتج
+                حفظ
               </button>
               <button
                 type="button"
                 onClick={() => setEditingProduct(null)}
-                className="px-4 h-10 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold"
+                className="px-5 h-10 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-[#74838A] text-xs font-bold"
               >
                 إلغاء
               </button>

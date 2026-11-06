@@ -9,6 +9,7 @@ import {
   MapPin,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
   LayoutGrid,
   Settings,
   Gamepad2,
@@ -18,9 +19,12 @@ import {
   Watch,
   Flame,
   Tag,
-  X,
+  ShoppingBag,
   Store as StoreIcon,
+  Heart,
+  X,
   Check,
+  Star,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
 import { ProductCard } from '../components/ProductCard';
@@ -28,9 +32,10 @@ import { ProductCard } from '../components/ProductCard';
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const {
-    currentUser,
     cartCount,
     unreadNotificationsCount,
+    favoritesProductIds,
+    favoritesStoreIds,
     locations,
     selectedLocationId,
     selectedPickupPoint,
@@ -42,9 +47,9 @@ export const HomePage: React.FC = () => {
     stores,
     getPlatformMostOrderedProducts,
     getSpecialOfferProducts,
+    getStoreRatingStats,
   } = useMarketplace();
 
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('cat-all');
   const [activeBannerIdx, setActiveBannerIdx] = useState(0);
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -57,7 +62,6 @@ export const HomePage: React.FC = () => {
     [banners]
   );
 
-  // Auto-advance banner every 6 seconds if multiple exist
   useEffect(() => {
     if (activeBanners.length <= 1) return;
     const timer = setInterval(() => {
@@ -77,11 +81,35 @@ export const HomePage: React.FC = () => {
     [categories]
   );
 
-  // Real platform-wide most ordered products
+  const activeStores = useMemo(
+    () => stores.filter((s) => s.status === 'active'),
+    [stores]
+  );
+
+  // Real platform-wide most ordered products (or active products if no orders yet)
   const mostOrderedMetrics = useMemo(
     () => getPlatformMostOrderedProducts(),
     [getPlatformMostOrderedProducts]
   );
+
+  const activeProducts = useMemo(() => {
+    const activeStoreSet = new Set(activeStores.map((s) => s.id));
+    return products.filter(
+      (p) =>
+        p.is_active &&
+        p.is_available_for_sale &&
+        p.stock_quantity > 0 &&
+        activeStoreSet.has(p.store_id)
+    );
+  }, [products, activeStores]);
+
+  // Display most ordered products if completed orders exist, otherwise newly added active products
+  const displayedMostOrderedProducts = useMemo(() => {
+    if (mostOrderedMetrics.length > 0) {
+      return mostOrderedMetrics.map((m) => m.product);
+    }
+    return activeProducts;
+  }, [mostOrderedMetrics, activeProducts]);
 
   // Real special offer products
   const specialOffers = useMemo(
@@ -89,554 +117,641 @@ export const HomePage: React.FC = () => {
     [getSpecialOfferProducts]
   );
 
-  // Live search results across active products and active stores
-  const searchResults = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return null;
-
-    const activeStoreSet = new Set(
-      stores.filter((s) => s.status === 'active').map((s) => s.id)
-    );
-
-    const matchedProducts = products.filter(
-      (p) =>
-        p.is_active &&
-        p.is_available_for_sale &&
-        activeStoreSet.has(p.store_id) &&
-        (p.name_ar.toLowerCase().includes(q) ||
-          (p.name_en && p.name_en.toLowerCase().includes(q)) ||
-          p.description_ar.toLowerCase().includes(q))
-    );
-
-    const matchedStores = stores.filter(
-      (s) =>
-        s.status === 'active' &&
-        (s.name_en.toLowerCase().includes(q) ||
-          s.name_ar.toLowerCase().includes(q) ||
-          s.activity_type_ar.toLowerCase().includes(q) ||
-          s.description_ar.toLowerCase().includes(q))
-    );
-
-    return { matchedProducts, matchedStores };
-  }, [searchQuery, products, stores]);
-
   // Filtered products when a specific category other than 'cat-all' is selected
   const categoryFilteredProducts = useMemo(() => {
     if (selectedCategoryId === 'cat-all') return null;
-    const activeStoreSet = new Set(
-      stores.filter((s) => s.status === 'active').map((s) => s.id)
-    );
-    return products.filter(
-      (p) =>
-        p.is_active &&
-        p.is_available_for_sale &&
-        p.stock_quantity > 0 &&
-        activeStoreSet.has(p.store_id) &&
-        p.category_id === selectedCategoryId
-    );
-  }, [selectedCategoryId, products, stores]);
+    return activeProducts.filter((p) => p.category_id === selectedCategoryId);
+  }, [selectedCategoryId, activeProducts]);
+
+  const totalFavs = favoritesProductIds.length + favoritesStoreIds.length;
 
   const renderCategoryIcon = (iconName: string) => {
     switch (iconName) {
       case 'LayoutGrid':
-        return <LayoutGrid className="w-5 h-5" />;
+        return <LayoutGrid className="w-6 h-6 stroke-[1.9]" />;
       case 'Settings':
-        return <Settings className="w-5 h-5" />;
+        return <Settings className="w-6 h-6 stroke-[1.9]" />;
       case 'Gamepad2':
-        return <Gamepad2 className="w-5 h-5" />;
+        return <Gamepad2 className="w-6 h-6 stroke-[1.9]" />;
       case 'Shirt':
-        return <Shirt className="w-5 h-5" />;
+        return <Shirt className="w-6 h-6 stroke-[1.9]" />;
       case 'BookOpen':
-        return <BookOpen className="w-5 h-5" />;
+        return <BookOpen className="w-6 h-6 stroke-[1.9]" />;
       case 'Utensils':
-        return <Utensils className="w-5 h-5" />;
+        return <Utensils className="w-6 h-6 stroke-[1.9]" />;
       case 'Watch':
-        return <Watch className="w-5 h-5" />;
+        return <Watch className="w-6 h-6 stroke-[1.9]" />;
       default:
-        return <LayoutGrid className="w-5 h-5" />;
+        return <LayoutGrid className="w-6 h-6 stroke-[1.9]" />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F7FC] pb-24">
-      {/* 1. COMPACT HEADER (Exact match to Reference Screen 1) */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-header">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
-          {/* Right Side in RTL: Brand Identity (Logo + CampusMarket + سوق الكلية الجامعي) */}
+    <div className="space-y-5">
+      {/* =====================================================================
+          MOBILE & TABLET TOP HEADER (Hidden on Desktop where AppNavigation shows Top Header)
+      ===================================================================== */}
+      <header className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E5EAED] shadow-header">
+        <div className="px-4 py-3 flex items-center justify-between gap-2">
+          {/* Right in RTL: Brand Logo + CampusMarket + سوق الكلية الجامعي */}
           <div
-            onClick={() => {
-              setSelectedCategoryId('cat-all');
-              setSearchQuery('');
-            }}
+            onClick={() => setSelectedCategoryId('cat-all')}
             className="flex items-center gap-2.5 cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-700 to-brand-500 flex items-center justify-center text-white shadow-sm shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-[#087E83] flex items-center justify-center text-white shadow-2xs shrink-0">
               <GraduationCap className="w-6 h-6 stroke-[2]" />
             </div>
             <div className="flex flex-col text-right">
               <span
                 dir="ltr"
-                className="font-en text-[17px] font-extrabold tracking-tight text-brand-800 leading-none"
+                className="font-en text-[17px] font-extrabold tracking-tight text-[#18343B] leading-none"
               >
                 CampusMarket
               </span>
-              <span className="text-[11.5px] font-semibold text-slate-500 mt-1 leading-none">
+              <span className="text-[11px] font-bold text-[#74838A] mt-1 leading-none">
                 سوق الكلية الجامعي
               </span>
             </div>
           </div>
 
-          {/* Left Side in RTL: Cart + Notifications + Account Icons */}
-          <div className="flex items-center gap-2">
-            {/* Cart Button */}
+          {/* Left in RTL: Cart + Notifications + Favorites + Profile Icons */}
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => navigate('/cart')}
               aria-label="السلة"
-              className="relative w-9 h-9 rounded-full bg-slate-50 hover:bg-brand-50 text-slate-700 hover:text-brand-700 flex items-center justify-center transition"
+              className="relative w-9 h-9 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-[#18343B] hover:text-[#087E83] flex items-center justify-center transition"
             >
-              <ShoppingCart className="w-[19px] h-[19px]" />
+              <ShoppingCart className="w-[18px] h-[18px]" />
               {cartCount > 0 && (
-                <span className="absolute -top-1 -left-1 min-w-[18px] h-[18px] px-1 rounded-full bg-brand-600 text-white text-[10px] font-extrabold flex items-center justify-center shadow-sm">
+                <span className="absolute -top-1 -left-1 min-w-[17px] h-[17px] px-1 rounded-full bg-[#087E83] text-white text-[10px] font-extrabold flex items-center justify-center">
                   {cartCount}
                 </span>
               )}
             </button>
 
-            {/* Notifications Button */}
+            <button
+              type="button"
+              onClick={() => navigate('/favorites')}
+              aria-label="المفضلة"
+              className="relative w-9 h-9 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-[#18343B] hover:text-[#087E83] flex items-center justify-center transition"
+            >
+              <Heart className="w-[18px] h-[18px]" />
+              {totalFavs > 0 && (
+                <span className="absolute -top-1 -left-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#087E83] text-white text-[9px] font-extrabold flex items-center justify-center">
+                  {totalFavs}
+                </span>
+              )}
+            </button>
+
             <button
               type="button"
               onClick={() => navigate('/notifications')}
               aria-label="الإشعارات"
-              className="relative w-9 h-9 rounded-full bg-slate-50 hover:bg-brand-50 text-slate-700 hover:text-brand-700 flex items-center justify-center transition"
+              className="relative w-9 h-9 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-[#18343B] hover:text-[#087E83] flex items-center justify-center transition"
             >
-              <Bell className="w-[19px] h-[19px]" />
+              <Bell className="w-[18px] h-[18px]" />
               {unreadNotificationsCount > 0 && (
-                <span className="absolute top-1 right-1.5 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
+                <span className="absolute top-1 right-1.5 w-2 h-2 rounded-full bg-[#F3C95B] ring-2 ring-white" />
               )}
             </button>
 
-            {/* Profile Avatar Button */}
             <button
               type="button"
               onClick={() => navigate('/account')}
               aria-label="حسابي"
-              className="w-9 h-9 rounded-full bg-brand-100 text-brand-700 hover:bg-brand-200 flex items-center justify-center transition font-bold text-xs"
+              className="w-9 h-9 rounded-full bg-[#EAF3F4] text-[#087E83] flex items-center justify-center transition font-bold text-xs"
             >
-              {currentUser ? (
-                <User className="w-[19px] h-[19px] fill-brand-700/20" />
-              ) : (
-                <User className="w-[19px] h-[19px]" />
-              )}
+              <User className="w-[18px] h-[18px]" />
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 pt-3.5 space-y-5">
-        {/* 2. SEARCH BAR & CAMPUS LOCATION SELECTOR ROW (Exact match to Reference Screen 1) */}
-        <div className="flex items-center gap-2.5">
-          {/* Search Input (Right side in RTL) */}
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ابحث عن منتج أو متجر..."
-              className="w-full h-11 pr-10 pl-8 rounded-full bg-white border border-slate-200/80 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 shadow-sm transition"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
+      <main className="px-4 lg:px-0 space-y-6">
+        {/* =====================================================================
+            MOBILE SEARCH BAR & CAMPUS LOCATION SELECTOR (Hidden on Desktop where Header has it)
+        ===================================================================== */}
+        <div className="lg:hidden flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate('/search')}
+            className="relative flex-1 h-11 pr-10 pl-4 rounded-full bg-white border border-[#E5EAED] text-right text-xs text-[#74838A] flex items-center shadow-2xs"
+          >
+            <Search className="w-4 h-4 text-[#74838A] absolute right-3.5 top-1/2 -translate-y-1/2" />
+            <span className="truncate">ابحث عن متجر أو منتج أو خدمة...</span>
+          </button>
 
-          {/* Campus Location Selector Pill (Left side in RTL: داخل الكلية) */}
           <button
             type="button"
             onClick={() => setShowLocationModal(true)}
-            className="h-11 px-3.5 rounded-full bg-white border border-slate-200/80 hover:border-brand-300 shadow-sm flex items-center gap-1.5 shrink-0 transition active:scale-95"
+            className="h-11 px-3.5 rounded-full bg-white border border-[#E5EAED] shadow-2xs flex items-center gap-1.5 shrink-0 transition active:scale-95"
           >
-            <MapPin className="w-4 h-4 text-brand-600 fill-brand-100 shrink-0" />
-            <span className="text-xs font-bold text-slate-700 max-w-[95px] sm:max-w-[150px] truncate">
+            <MapPin className="w-4 h-4 text-[#087E83] shrink-0" />
+            <span className="text-xs font-extrabold text-[#18343B] max-w-[92px] truncate">
               {currentLocation.name_ar}
             </span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <ChevronDown className="w-3.5 h-3.5 text-[#74838A] shrink-0" />
           </button>
         </div>
 
-        {/* LIVE SEARCH RESULTS OVERLAY VIEW */}
-        {searchResults ? (
-          <div className="space-y-5 bg-white rounded-2xl p-4 border border-slate-100 shadow-card">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-sm font-bold text-slate-800">
-                نتائج البحث عن: &ldquo;{searchQuery}&rdquo;
+        {/* =====================================================================
+            3. TURQUOISE CAMPUS HERO BANNER (Matches Reference Images 1, 2, 3)
+        ===================================================================== */}
+        {activeBanners.length > 0 && (
+          <section aria-label="البانر الرئيسي">
+            {(() => {
+              const currentBanner =
+                activeBanners[activeBannerIdx % activeBanners.length];
+              return (
+                <div className="relative rounded-3xl overflow-hidden bg-gradient-to-l from-[#A8DBDC] via-[#CBE8E9] to-[#E6F4F4] border border-[#C5E0E1] shadow-card min-h-[175px] sm:min-h-[220px] lg:min-h-[250px] flex items-center justify-between p-5 sm:p-8 lg:px-12">
+                  {/* Subtle Campus Architectural Watermark Curves */}
+                  <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-full bg-[#36A6A6]/15 pointer-events-none" />
+                  <div className="absolute -top-12 left-1/3 w-48 h-48 rounded-full bg-white/40 pointer-events-none" />
+
+                  {/* Right Side in RTL: Headline + Golden Underline Accent + Subtitle Pill + CTA */}
+                  <div className="relative z-10 flex-1 max-w-[60%] sm:max-w-[56%] space-y-2.5 sm:space-y-3.5 text-right">
+                    <h1 className="text-lg sm:text-2xl lg:text-3xl font-extrabold text-[#18343B] leading-snug">
+                      {currentBanner.title_ar}
+                    </h1>
+
+                    {/* Golden Yellow Subtle Highlight Bar (#F3C95B) */}
+                    <div className="w-24 sm:w-32 h-1.5 rounded-full bg-[#F3C95B]" />
+
+                    <div className="inline-block bg-white/80 backdrop-blur-xs border border-white px-3.5 py-1.5 rounded-full shadow-2xs">
+                      <p className="text-[11px] sm:text-xs lg:text-sm font-bold text-[#18343B]">
+                        {currentBanner.subtitle_ar}
+                      </p>
+                    </div>
+
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={() => navigate(currentBanner.target_link || '/stores')}
+                        className="inline-flex items-center gap-1.5 bg-[#087E83] hover:bg-[#06666A] text-white font-extrabold text-xs sm:text-sm px-5 sm:px-7 py-2.5 rounded-full shadow-sm transition active:scale-95"
+                      >
+                        <span>{currentBanner.cta_text_ar}</span>
+                        <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Left Side in RTL: University Bag, Books, Coffee & Graduation Cap Illustration */}
+                  <div className="relative z-10 w-[38%] sm:w-[40%] flex items-center justify-center">
+                    <div className="relative w-32 h-32 sm:w-52 sm:h-44 lg:w-64 lg:h-52 flex items-center justify-center">
+                      {/* Clean SVG Illustration of Turquoise Campus Bag + Books + Coffee matching Reference Image 1 & 2 */}
+                      <svg
+                        viewBox="0 0 260 200"
+                        className="w-full h-full drop-shadow-md"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        {/* Soft Ground Shadow */}
+                        <ellipse cx="130" cy="182" rx="105" ry="12" fill="#087E83" fillOpacity="0.18" />
+                        {/* Turquoise Shopping/Campus Tote Bag */}
+                        <path
+                          d="M95 55C95 36 112 24 130 24C148 24 165 36 165 55"
+                          stroke="#06666A"
+                          strokeWidth="7"
+                          strokeLinecap="round"
+                        />
+                        <rect
+                          x="72"
+                          y="52"
+                          width="116"
+                          height="118"
+                          rx="16"
+                          fill="#087E83"
+                        />
+                        <rect
+                          x="80"
+                          y="58"
+                          width="100"
+                          height="106"
+                          rx="12"
+                          fill="#0A8F95"
+                        />
+                        {/* Graduation Cap Icon on Bag */}
+                        <path
+                          d="M130 86L102 99L130 112L158 99L130 86Z"
+                          fill="#E6F4F4"
+                        />
+                        <path
+                          d="M112 106V122C112 127 120 132 130 132C140 132 148 127 148 122V106"
+                          stroke="#E6F4F4"
+                          strokeWidth="4"
+                          strokeLinecap="round"
+                        />
+                        <path
+                          d="M156 100V120"
+                          stroke="#F3C95B"
+                          strokeWidth="3.5"
+                          strokeLinecap="round"
+                        />
+                        {/* Stack of Academic Books on Left */}
+                        <rect x="28" y="146" width="68" height="22" rx="5" fill="#06666A" />
+                        <rect x="32" y="150" width="58" height="14" rx="2" fill="#FFFFFF" />
+                        <rect x="34" y="126" width="62" height="20" rx="5" fill="#F3C95B" />
+                        <rect x="38" y="130" width="52" height="12" rx="2" fill="#FFFDF7" />
+                        {/* Campus Coffee Cup on Right */}
+                        <path
+                          d="M174 114H214L209 172H179L174 114Z"
+                          fill="#FFFFFF"
+                          stroke="#DCE7E9"
+                          strokeWidth="2"
+                        />
+                        <rect x="175" y="130" width="38" height="22" rx="2" fill="#36A6A6" />
+                        <rect x="170" y="104" width="48" height="10" rx="4" fill="#18343B" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* Desktop Left/Right Arrows matching Reference Image 2 */}
+                  {activeBanners.length > 1 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActiveBannerIdx(
+                            (prev) =>
+                              (prev - 1 + activeBanners.length) %
+                              activeBanners.length
+                          )
+                        }
+                        className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-[#18343B] items-center justify-center shadow-sm z-20"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActiveBannerIdx(
+                            (prev) => (prev + 1) % activeBanners.length
+                          )
+                        }
+                        className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-[#18343B] items-center justify-center shadow-sm z-20"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                    </>
+                  )}
+
+                  {/* Pagination Dots at Bottom Center */}
+                  <div className="absolute bottom-3 inset-x-0 flex items-center justify-center gap-1.5 z-20">
+                    {(activeBanners.length > 1 ? activeBanners : [1, 2, 3, 4]).map(
+                      (_, idx) => (
+                        <span
+                          key={idx}
+                          className={`h-2 rounded-full transition-all ${
+                            idx === activeBannerIdx % 4
+                              ? 'w-2.5 bg-[#087E83]'
+                              : 'w-2 bg-white/80'
+                          }`}
+                        />
+                      )
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+          </section>
+        )}
+
+        {/* =====================================================================
+            4. MAIN CATEGORIES (الأقسام الرئيسية) — Matches Reference Image 2 & 3
+        ===================================================================== */}
+        <section aria-label="الأقسام الرئيسية" className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <LayoutGrid className="w-4 h-4 text-[#087E83]" />
+              <h2 className="text-[15px] sm:text-base font-extrabold text-[#18343B]">
+                الأقسام الرئيسية
               </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/stores')}
+              className="text-xs font-extrabold text-[#087E83] hover:text-[#06666A] flex items-center gap-0.5"
+            >
+              <span>عرض الكل</span>
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Responsive Category Cards Row (Wide Cards on Desktop, Compact Cards on Mobile) */}
+          <div className="grid grid-cols-6 sm:grid-cols-6 lg:grid-cols-6 gap-2 sm:gap-3 overflow-x-auto no-scrollbar">
+            {activeCategories.slice(0, 6).map((cat) => {
+              const isSelected = selectedCategoryId === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedCategoryId(cat.id)}
+                  className={`rounded-2xl p-3 sm:p-4 flex flex-col items-center justify-center gap-2 transition-all border ${
+                    isSelected
+                      ? 'bg-[#087E83] text-white border-[#087E83] shadow-sm'
+                      : 'bg-[#EAF3F4]/75 hover:bg-[#EAF3F4] text-[#18343B] border-[#E5EAED]'
+                  }`}
+                >
+                  <div
+                    className={`${
+                      isSelected ? 'text-white' : 'text-[#087E83]'
+                    }`}
+                  >
+                    {renderCategoryIcon(cat.icon_name)}
+                  </div>
+                  <span
+                    className={`text-[11px] sm:text-xs text-center leading-tight line-clamp-2 ${
+                      isSelected
+                        ? 'font-extrabold text-white'
+                        : 'font-bold text-[#18343B]'
+                    }`}
+                  >
+                    {cat.name_ar}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Filtered Category View when user clicks a specific category */}
+        {categoryFilteredProducts !== null && (
+          <section className="bg-white rounded-3xl p-5 border border-[#E5EAED] shadow-card space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-extrabold text-[#18343B]">
+                محتوى قسم:{' '}
+                <span className="text-[#087E83]">
+                  {
+                    activeCategories.find((c) => c.id === selectedCategoryId)
+                      ?.name_ar
+                  }
+                </span>
+              </h3>
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
-                className="text-xs text-brand-600 font-bold hover:underline"
+                onClick={() => setSelectedCategoryId('cat-all')}
+                className="text-xs font-bold text-[#087E83] hover:underline"
               >
-                إغلاق البحث
+                إظهار جميع الأقسام
               </button>
             </div>
 
-            {searchResults.matchedStores.length > 0 && (
-              <div className="space-y-2.5">
-                <h3 className="text-xs font-bold text-slate-500">
-                  المتاجر المطابقة ({searchResults.matchedStores.length})
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {searchResults.matchedStores.map((st) => (
-                    <div
-                      key={st.id}
-                      onClick={() => navigate(`/store/${st.id}`)}
-                      className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:border-brand-200 bg-slate-50/60 cursor-pointer transition"
-                    >
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={st.logo_url}
-                          alt={st.name_en}
-                          className="w-11 h-11 rounded-xl object-cover"
-                        />
-                        <div>
-                          <p className="font-en font-bold text-sm text-slate-800">
-                            {st.name_en}
-                          </p>
-                          <p className="text-xs text-slate-500">{st.activity_type_ar}</p>
-                        </div>
-                      </div>
-                      <ChevronLeft className="w-4 h-4 text-slate-400" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-2.5">
-              <h3 className="text-xs font-bold text-slate-500">
-                المنتجات والخدمات ({searchResults.matchedProducts.length})
-              </h3>
-              {searchResults.matchedProducts.length === 0 ? (
-                <p className="text-xs text-slate-400 py-6 text-center">
-                  لا توجد منتجات مطابقة لبحثك حالياً.
+            {categoryFilteredProducts.length === 0 ? (
+              <div className="rounded-2xl bg-[#F0F7F7]/80 border border-[#E5EAED] py-10 px-4 text-center space-y-1.5">
+                <ShoppingBag className="w-9 h-9 text-[#087E83] mx-auto stroke-[1.6]" />
+                <p className="text-sm font-extrabold text-[#18343B]">
+                  لا توجد منتجات حالياً
                 </p>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {searchResults.matchedProducts.map((prod) => (
-                    <ProductCard key={prod.id} product={prod} showStoreName />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* 3. PROMOTIONAL PURPLE BANNER (Matches Reference Screen 1) */}
-            {activeBanners.length > 0 && (
-              <section aria-label="الإعلانات الجامعية">
-                {(() => {
-                  const currentBanner =
-                    activeBanners[activeBannerIdx % activeBanners.length];
-                  return (
-                    <div className="relative rounded-2xl overflow-hidden bg-gradient-to-l from-[#5B21B6] via-[#7C3AED] to-[#9333EA] text-white shadow-card min-h-[152px] sm:min-h-[180px] flex items-center justify-between p-4 sm:p-6">
-                      {/* Decorative soft glow circles */}
-                      <div className="absolute -top-12 -right-12 w-36 h-36 rounded-full bg-white/10 pointer-events-none" />
-                      <div className="absolute -bottom-10 left-1/3 w-28 h-28 rounded-full bg-brand-300/20 pointer-events-none" />
-
-                      {/* Right side in RTL: Text + CTA Button */}
-                      <div className="relative z-10 flex-1 max-w-[62%] sm:max-w-[60%] space-y-1.5 text-right">
-                        <h2 className="text-base sm:text-xl font-extrabold leading-snug">
-                          {currentBanner.title_ar}
-                        </h2>
-                        <p className="text-[11.5px] sm:text-xs text-brand-100 font-medium">
-                          {currentBanner.subtitle_ar}
-                        </p>
-                        <div className="pt-1.5">
-                          <button
-                            type="button"
-                            onClick={() => navigate(currentBanner.target_link)}
-                            className="inline-flex items-center gap-1 bg-white text-brand-700 hover:bg-brand-50 font-extrabold text-xs px-4 py-2 rounded-full shadow-sm transition active:scale-95"
-                          >
-                            <span>{currentBanner.cta_text_ar}</span>
-                            <ChevronLeft className="w-3.5 h-3.5 stroke-[2.5]" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Left side in RTL: University Items Illustration / Image */}
-                      <div className="relative z-10 w-[36%] sm:w-[34%] flex items-center justify-center">
-                        <div className="relative w-28 h-28 sm:w-36 sm:h-32 rounded-2xl overflow-hidden border-2 border-white/25 shadow-lg bg-brand-900/30">
-                          <img
-                            src={currentBanner.image_url}
-                            alt={currentBanner.title_ar}
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute bottom-1.5 right-1.5 bg-brand-700/90 backdrop-blur-sm text-white p-1.5 rounded-lg shadow">
-                            <GraduationCap className="w-4 h-4" />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Pagination Dots at Bottom Center */}
-                      {activeBanners.length > 1 && (
-                        <div className="absolute bottom-2.5 inset-x-0 flex items-center justify-center gap-1.5 z-20">
-                          {activeBanners.map((b, idx) => (
-                            <button
-                              key={b.id}
-                              type="button"
-                              aria-label={`إعلان ${idx + 1}`}
-                              onClick={() => setActiveBannerIdx(idx)}
-                              className={`h-1.5 rounded-full transition-all ${
-                                idx === activeBannerIdx % activeBanners.length
-                                  ? 'w-4 bg-white'
-                                  : 'w-1.5 bg-white/45'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </section>
-            )}
-
-            {/* 4. MAIN CATEGORIES HORIZONTAL ROW (Matches Reference Screen 1) */}
-            <section aria-label="الأقسام الرئيسية" className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <LayoutGrid className="w-4 h-4 text-brand-600" />
-                  <h2 className="text-[15px] font-extrabold text-slate-800">
-                    الأقسام الرئيسية
-                  </h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => navigate('/stores')}
-                  className="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-0.5"
-                >
-                  <span>عرض الكل</span>
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                </button>
+                <p className="text-xs text-[#74838A]">
+                  سيتم عرض المنتجات هنا فور إضافتها
+                </p>
               </div>
-
-              <div className="flex items-start gap-3 overflow-x-auto no-scrollbar pb-1 pt-0.5">
-                {activeCategories.map((cat) => {
-                  const isSelected = selectedCategoryId === cat.id;
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setSelectedCategoryId(cat.id)}
-                      className="flex flex-col items-center gap-1.5 shrink-0 group focus:outline-none"
-                    >
-                      <div
-                        className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
-                          isSelected
-                            ? 'bg-brand-600 text-white shadow-md scale-105 ring-2 ring-brand-300'
-                            : 'bg-white text-brand-600 border border-slate-100 shadow-sm group-hover:border-brand-200'
-                        }`}
-                        style={
-                          !isSelected
-                            ? {
-                                backgroundColor: cat.color_bg,
-                                color: cat.color_text,
-                              }
-                            : undefined
-                        }
-                      >
-                        {renderCategoryIcon(cat.icon_name)}
-                      </div>
-                      <span
-                        className={`text-[11.5px] max-w-[68px] text-center leading-tight line-clamp-2 ${
-                          isSelected
-                            ? 'font-extrabold text-brand-700'
-                            : 'font-semibold text-slate-700'
-                        }`}
-                      >
-                        {cat.name_ar}
-                      </span>
-                    </button>
-                  );
-                })}
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
+                {categoryFilteredProducts.map((prod) => (
+                  <ProductCard key={prod.id} product={prod} showStoreName />
+                ))}
               </div>
-            </section>
-
-            {/* Category Filter Results View (if user clicked a specific category chip) */}
-            {categoryFilteredProducts !== null && (
-              <section className="space-y-3 bg-white p-3.5 rounded-2xl border border-brand-100 shadow-card">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-extrabold text-slate-800">
-                    منتجات قسم:{' '}
-                    <span className="text-brand-600">
-                      {activeCategories.find((c) => c.id === selectedCategoryId)?.name_ar}
-                    </span>{' '}
-                    ({categoryFilteredProducts.length})
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategoryId('cat-all')}
-                    className="text-xs font-bold text-slate-500 hover:text-brand-600"
-                  >
-                    إظهار الكل
-                  </button>
-                </div>
-
-                {categoryFilteredProducts.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-slate-400">
-                    لا توجد منتجات متاحة في هذا القسم حالياً.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    {categoryFilteredProducts.map((prod) => (
-                      <ProductCard key={prod.id} product={prod} showStoreName />
-                    ))}
-                  </div>
-                )}
-              </section>
             )}
-
-            {/* 5. MOST ORDERED PRODUCTS PLATFORM-WIDE (المنتجات الأكثر طلباً) */}
-            {mostOrderedMetrics.length > 0 && (
-              <section aria-label="المنتجات الأكثر طلباً" className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Flame className="w-4 h-4 text-brand-600 fill-brand-500" />
-                    <h2 className="text-[15px] font-extrabold text-slate-800">
-                      المنتجات الأكثر طلباً
-                    </h2>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/stores')}
-                    className="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-0.5"
-                  >
-                    <span>عرض الكل</span>
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {mostOrderedMetrics.slice(0, 4).map(({ product }) => (
-                    <ProductCard key={product.id} product={product} showStoreName />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* 6. SPECIAL OFFERS SECTION (عروض خاصة) */}
-            {specialOffers.length > 0 && (
-              <section aria-label="عروض خاصة" className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Tag className="w-4 h-4 text-brand-600" />
-                    <h2 className="text-[15px] font-extrabold text-slate-800">
-                      عروض خاصة
-                    </h2>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/stores')}
-                    className="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-0.5"
-                  >
-                    <span>عرض الكل</span>
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {/* Promotional Offer Highlight Strip + 2-Column Offer Products Grid */}
-                <div className="rounded-2xl overflow-hidden bg-gradient-to-r from-brand-700 via-brand-600 to-purple-500 p-3.5 text-white flex items-center justify-between shadow-sm">
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full">
-                      خصومات الطلبة الحصرية
-                    </span>
-                    <h3 className="text-sm font-extrabold pt-0.5">
-                      وفّر حتى 25% على المستلزمات والقهوة والملابس الجامعية
-                    </h3>
-                  </div>
-                  <StoreIcon className="w-8 h-8 text-white/80 shrink-0" />
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {specialOffers.map((prod) => (
-                    <ProductCard key={prod.id} product={prod} showStoreName />
-                  ))}
-                </div>
-              </section>
-            )}
-          </>
+          </section>
         )}
+
+        {/* =====================================================================
+            5 & 6. MOST ORDERED PRODUCTS & SPECIAL OFFERS
+            (Side-by-side 2-column layout on Desktop matching Reference Image 2,
+             Stacked on Mobile matching Reference Image 3)
+        ===================================================================== */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* RIGHT COLUMN IN RTL: المنتجات الأكثر طلباً */}
+          <section aria-label="المنتجات الأكثر طلباً" className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Flame className="w-4 h-4 text-[#087E83]" />
+                <h2 className="text-[15px] sm:text-base font-extrabold text-[#18343B]">
+                  المنتجات الأكثر طلباً
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/search')}
+                className="text-xs font-extrabold text-[#087E83] hover:text-[#06666A] flex items-center gap-0.5"
+              >
+                <span>عرض الكل</span>
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {displayedMostOrderedProducts.length === 0 ? (
+              /* PROFESSIONAL EMPTY STATE (Matches Reference Image 2 & 3) */
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#F0F7F7] to-[#E6F1F2] border border-[#DCEAEB] py-12 px-6 text-center flex flex-col items-center justify-center min-h-[190px]">
+                <div className="w-14 h-14 rounded-2xl bg-white/80 border border-[#C5E0E1] flex items-center justify-center text-[#087E83] mb-3 shadow-2xs">
+                  <ShoppingBag className="w-7 h-7 stroke-[1.7]" />
+                </div>
+                <h3 className="text-sm sm:text-base font-extrabold text-[#18343B]">
+                  لا توجد منتجات حالياً
+                </h3>
+                <p className="text-xs font-medium text-[#74838A] mt-1">
+                  سيتم عرض المنتجات هنا فور إضافتها
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {displayedMostOrderedProducts.slice(0, 4).map((prod) => (
+                  <ProductCard key={prod.id} product={prod} showStoreName />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* LEFT COLUMN IN RTL: العروض الخاصة */}
+          <section aria-label="العروض الخاصة" className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Tag className="w-4 h-4 text-[#087E83]" />
+                <h2 className="text-[15px] sm:text-base font-extrabold text-[#18343B]">
+                  العروض الخاصة
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/search')}
+                className="text-xs font-extrabold text-[#087E83] hover:text-[#06666A] flex items-center gap-0.5"
+              >
+                <span>عرض الكل</span>
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {specialOffers.length === 0 ? (
+              /* PROFESSIONAL EMPTY STATE (Matches Reference Image 2 & 3) */
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#F0F7F7] to-[#E6F1F2] border border-[#DCEAEB] py-12 px-6 text-center flex flex-col items-center justify-center min-h-[190px]">
+                <div className="w-14 h-14 rounded-2xl bg-white/80 border border-[#C5E0E1] flex items-center justify-center text-[#087E83] mb-3 shadow-2xs">
+                  <Tag className="w-7 h-7 stroke-[1.7]" />
+                </div>
+                <h3 className="text-sm sm:text-base font-extrabold text-[#18343B]">
+                  لا توجد عروض حالياً
+                </h3>
+                <p className="text-xs font-medium text-[#74838A] mt-1">
+                  تابعنا لمعرفة أحدث العروض
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {specialOffers.slice(0, 4).map((prod) => (
+                  <ProductCard key={prod.id} product={prod} showStoreName />
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+
+        {/* =====================================================================
+            7. STORES SECTION ON HOME PAGE (قسم المتاجر — Matches Section 6 & 13)
+        ===================================================================== */}
+        <section aria-label="المتاجر" className="space-y-3 pt-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <StoreIcon className="w-4 h-4 text-[#087E83]" />
+              <h2 className="text-[15px] sm:text-base font-extrabold text-[#18343B]">
+                المتاجر
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/stores')}
+              className="text-xs font-extrabold text-[#087E83] hover:text-[#06666A] flex items-center gap-0.5"
+            >
+              <span>عرض الكل</span>
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {activeStores.length === 0 ? (
+            <div className="rounded-3xl bg-white border border-[#E5EAED] shadow-card py-10 px-6 text-center flex flex-col items-center justify-center space-y-2">
+              <div className="w-14 h-14 rounded-2xl bg-[#F0F7F7] border border-[#C5E0E1] flex items-center justify-center text-[#087E83]">
+                <StoreIcon className="w-7 h-7 stroke-[1.7]" />
+              </div>
+              <h3 className="text-sm sm:text-base font-extrabold text-[#18343B]">
+                لا توجد متاجر حالياً
+              </h3>
+              <p className="text-xs text-[#74838A]">
+                سيتم عرض المتاجر هنا فور إضافتها
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {activeStores.slice(0, 6).map((store) => {
+                const ratingStats = getStoreRatingStats(store.id);
+                return (
+                  <div
+                    key={store.id}
+                    onClick={() => navigate(`/store/${store.id}`)}
+                    className="bg-white rounded-2xl p-3.5 border border-[#E5EAED] shadow-card hover:shadow-card-hover transition cursor-pointer flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img
+                        src={store.logo_url}
+                        alt={store.name_ar || store.name_en}
+                        className="w-14 h-14 rounded-2xl object-cover border border-[#E5EAED] shrink-0 bg-[#F8FAFC]"
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-extrabold text-[#18343B] truncate">
+                            {store.name_ar || store.name_en}
+                          </h3>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              store.is_open
+                                ? 'bg-[#EAF3F4] text-[#087E83]'
+                                : 'bg-[#F8FAFC] text-[#74838A]'
+                            }`}
+                          >
+                            {store.is_open ? 'مفتوح' : 'مغلق'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-[#74838A] truncate mt-0.5">
+                          {store.description_ar || store.activity_type_ar}
+                        </p>
+                        {ratingStats.count > 0 && (
+                          <div className="flex items-center gap-1 mt-1 text-xs">
+                            <Star className="w-3.5 h-3.5 text-[#F3C95B] fill-[#F3C95B]" />
+                            <span className="font-en font-extrabold text-[#18343B]">
+                              {ratingStats.average.toFixed(1)}
+                            </span>
+                            <span className="text-[#74838A] text-[11px]">
+                              ({ratingStats.count})
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <ChevronLeft className="w-4 h-4 text-[#74838A] shrink-0" />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </main>
 
-      {/* CAMPUS LOCATION & PICKUP POINT MODAL */}
+      {/* MOBILE CAMPUS LOCATION MODAL */}
       {showLocationModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-2xl p-5 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 bg-[#18343B]/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-2xl p-5 space-y-4 shadow-xl border border-[#E5EAED]">
+            <div className="flex items-center justify-between border-b border-[#E5EAED] pb-3">
               <div className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-brand-600" />
-                <h3 className="text-base font-extrabold text-slate-800">
-                  تحديد الموقع داخل الكلية
+                <MapPin className="w-5 h-5 text-[#087E83]" />
+                <h3 className="text-base font-extrabold text-[#18343B]">
+                  اختيار الكلية وموقع الاستلام
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowLocationModal(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500"
+                className="w-8 h-8 rounded-full bg-[#F8FAFC] flex items-center justify-center text-[#74838A]"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3">
-              <label className="block text-xs font-bold text-slate-600">
-                اختر الكلية أو الحرم الجامعي:
-              </label>
-              <div className="space-y-2">
-                {locations.map((loc) => {
-                  const active = loc.id === selectedLocationId;
-                  return (
-                    <button
-                      key={loc.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedLocationId(loc.id);
-                        if (loc.pickup_points.length > 0) {
-                          setSelectedPickupPoint(loc.pickup_points[0]);
-                        }
-                      }}
-                      className={`w-full p-3 rounded-xl border text-right flex items-center justify-between transition ${
-                        active
-                          ? 'border-brand-600 bg-brand-50/60 text-brand-900'
-                          : 'border-slate-200 hover:border-slate-300 text-slate-700'
-                      }`}
-                    >
-                      <div>
-                        <p className="text-xs font-extrabold">{loc.name_ar}</p>
-                        <p className="text-[11px] text-slate-500">{loc.campus_name_ar}</p>
-                      </div>
-                      {active && <Check className="w-4 h-4 text-brand-600" />}
-                    </button>
-                  );
-                })}
-              </div>
+            <div className="space-y-2">
+              {locations.map((loc) => {
+                const active = loc.id === selectedLocationId;
+                return (
+                  <button
+                    key={loc.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedLocationId(loc.id);
+                      if (loc.pickup_points.length > 0) {
+                        setSelectedPickupPoint(loc.pickup_points[0]);
+                      }
+                    }}
+                    className={`w-full p-3 rounded-xl border text-right flex items-center justify-between transition ${
+                      active
+                        ? 'border-[#087E83] bg-[#F0F7F7] text-[#18343B]'
+                        : 'border-[#E5EAED] text-[#18343B]'
+                    }`}
+                  >
+                    <div>
+                      <p className="text-xs font-extrabold">{loc.name_ar}</p>
+                      <p className="text-[11px] text-[#74838A]">{loc.campus_name_ar}</p>
+                    </div>
+                    {active && <Check className="w-4 h-4 text-[#087E83]" />}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-600">
-                نقطة الاستلام / التوصيل المفضلة داخل الكلية:
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-[#74838A]">
+                نقطة الاستلام داخل الكلية:
               </label>
               <select
                 value={selectedPickupPoint}
                 onChange={(e) => setSelectedPickupPoint(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:border-brand-600"
+                className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-semibold text-[#18343B] bg-white"
               >
                 {currentLocation.pickup_points.map((pt) => (
                   <option key={pt} value={pt}>
@@ -649,7 +764,7 @@ export const HomePage: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowLocationModal(false)}
-              className="w-full h-11 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-sm transition"
+              className="w-full h-11 rounded-xl bg-[#087E83] hover:bg-[#06666A] text-white font-bold text-xs transition"
             >
               تأكيد الموقع
             </button>

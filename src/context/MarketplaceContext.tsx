@@ -171,7 +171,7 @@ interface MarketplaceContextType {
 
 const MarketplaceContext = createContext<MarketplaceContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'campus_market_db_v1';
+const STORAGE_KEY = 'campus_market_db_v2_turquoise';
 export const LIBYAN_SPIDER_CLOUD_API = 'https://api.kurofangs.id.ly/campus-market';
 
 function loadFromStorage<T>(key: string, fallback: T): T {
@@ -195,7 +195,7 @@ function saveToStorage<T>(key: string, value: T) {
 export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [users, setUsers] = useState<User[]>(() => loadFromStorage('users', INITIAL_USERS));
   const [currentUserId, setCurrentUserId] = useState<string | null>(() =>
-    loadFromStorage('currentUserId', 'user-student-1')
+    loadFromStorage('currentUserId', null)
   );
   const [locations] = useState<CampusLocation[]>(() => loadFromStorage('locations', INITIAL_LOCATIONS));
   const [selectedLocationId, setSelectedLocationId] = useState<string>(() =>
@@ -232,39 +232,13 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     loadFromStorage('auditLogs', INITIAL_AUDIT_LOGS)
   );
 
-  // Favorites & Cart mapped per userId
+  // Favorites & Cart mapped per userId (or 'guest' when not logged in)
   const [favoritesByUser, setFavoritesByUser] = useState<Record<string, { products: string[]; stores: string[] }>>(() =>
-    loadFromStorage('favoritesByUser', {
-      'user-student-1': {
-        products: ['prod-uni-hoodie', 'prod-coffee-hot-latte'],
-        stores: ['store-campus-coffee'],
-      },
-    })
+    loadFromStorage('favoritesByUser', {})
   );
 
   const [cartsByUser, setCartsByUser] = useState<Record<string, CartItem[]>>(() =>
-    loadFromStorage<Record<string, CartItem[]>>('cartsByUser', {
-      'user-student-1': [
-        {
-          id: 'ci-init-1',
-          user_id: 'user-student-1',
-          product_id: 'prod-coffee-hot-latte',
-          store_id: 'store-campus-coffee',
-          quantity: 2,
-          selected_options: { 'الحجم': 'وسط (Regular)', 'السكر': 'سكر معتدل' },
-          selected_option_ids: { 'vg-latte-size': 'opt-latte-reg', 'vg-latte-sugar': 'opt-sugar-mid' },
-        },
-        {
-          id: 'ci-init-2',
-          user_id: 'user-student-1',
-          product_id: 'prod-book-notebook',
-          store_id: 'store-bookzone',
-          quantity: 1,
-          selected_options: { 'عدد الفواصل': '3 فواصل (150 ورقة)' },
-          selected_option_ids: { 'vg-nb-pages': 'opt-nb-3' },
-        },
-      ],
-    })
+    loadFromStorage<Record<string, CartItem[]>>('cartsByUser', {})
   );
 
   const [toastMessage, setToastMessage] = useState<{
@@ -293,8 +267,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const data = await res.json();
         if (!isMounted || !data.ok) return;
 
-        if (data.hasSeededStores) {
-          if (Array.isArray(data.stores) && data.stores.length > 0) setStores(data.stores);
+        if (data.ok) {
+          if (Array.isArray(data.stores)) setStores(data.stores);
           if (Array.isArray(data.products)) setProducts(data.products);
           if (Array.isArray(data.orders)) setOrders(data.orders);
           if (Array.isArray(data.reviews)) setReviews(data.reviews);
@@ -303,7 +277,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
           if (Array.isArray(cols.users) && cols.users.length > 0) setUsers(cols.users);
           if (Array.isArray(cols.categories) && cols.categories.length > 0) setCategories(cols.categories);
           if (Array.isArray(cols.storeCategories)) setStoreCategories(cols.storeCategories);
-          if (Array.isArray(cols.banners)) setBanners(cols.banners);
+          if (Array.isArray(cols.banners) && cols.banners.length > 0) setBanners(cols.banners);
           if (Array.isArray(cols.notifications)) setNotifications(cols.notifications);
           if (Array.isArray(cols.invitations)) setInvitations(cols.invitations);
           if (cols.platformSettings) setPlatformSettings(cols.platformSettings);
@@ -311,31 +285,6 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
           if (Array.isArray(cols.auditLogs)) setAuditLogs(cols.auditLogs);
           if (cols.favoritesByUser) setFavoritesByUser(cols.favoritesByUser);
           if (cols.cartsByUser) setCartsByUser(cols.cartsByUser);
-        } else {
-          // First time seeding Libyan Spider PostgreSQL database
-          await fetch(`${LIBYAN_SPIDER_CLOUD_API}/api/sync`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              stores,
-              products,
-              orders,
-              reviews,
-              collections: {
-                users,
-                categories,
-                storeCategories,
-                banners,
-                notifications,
-                invitations,
-                platformSettings,
-                subscriptions,
-                auditLogs,
-                favoritesByUser,
-                cartsByUser,
-              },
-            }),
-          });
         }
       } catch {
         // Fallback silently to local cache if offline
@@ -522,7 +471,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       category_id: inv.category_id || 'cat-services',
       logo_url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=400&q=80',
       cover_url: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=900&q=80',
-      icon_bg_color: '#6D28D9',
+      icon_bg_color: '#087E83',
       icon_type: 'sparkles',
       location_inside_campus: data.location_inside_campus.trim(),
       working_hours: data.working_hours.trim() || '08:00 - 17:00',
@@ -1367,7 +1316,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         cover_url:
           storeData.cover_url ||
           'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80',
-        icon_bg_color: storeData.icon_bg_color || '#6D28D9',
+        icon_bg_color: storeData.icon_bg_color || '#087E83',
         icon_type: storeData.icon_type || 'sparkles',
         location_inside_campus: storeData.location_inside_campus || 'داخل الكلية',
         working_hours: storeData.working_hours || '08:00 - 17:00',
@@ -1414,8 +1363,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         name_en: catData.name_en || 'New Category',
         slug: (catData.name_en || `cat-${Date.now()}`).toLowerCase().replace(/\s+/g, '-'),
         icon_name: catData.icon_name || 'Sparkles',
-        color_bg: catData.color_bg || '#F3E8FF',
-        color_text: catData.color_text || '#6D28D9',
+        color_bg: catData.color_bg || '#EAF3F4',
+        color_text: catData.color_text || '#087E83',
         sort_order: Number(catData.sort_order ?? categories.length + 1),
         is_active: catData.is_active ?? true,
       };

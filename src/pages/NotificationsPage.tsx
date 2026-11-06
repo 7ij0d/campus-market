@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell,
-  ChevronRight,
+  ArrowRight,
   CheckCheck,
   Package,
   Tag,
@@ -32,19 +32,19 @@ export const NotificationsPage: React.FC = () => {
   }, [currentUser, notifications]);
 
   return (
-    <div className="min-h-screen bg-[#F8F7FC] pb-24">
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-header">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+    <div className="space-y-4">
+      <header className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E5EAED] shadow-header">
+        <div className="px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="w-9 h-9 rounded-full bg-slate-50 flex items-center justify-center text-slate-700"
+              className="w-9 h-9 rounded-full bg-[#F8FAFC] border border-[#E5EAED] flex items-center justify-center text-[#18343B]"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ArrowRight className="w-4 h-4" />
             </button>
-            <h1 className="text-base font-extrabold text-slate-900">
-              الإشعارات ({unreadNotificationsCount} غير مقروءة)
+            <h1 className="text-base font-extrabold text-[#18343B]">
+              الإشعارات
             </h1>
           </div>
 
@@ -52,7 +52,7 @@ export const NotificationsPage: React.FC = () => {
             <button
               type="button"
               onClick={markAllNotificationsAsRead}
-              className="text-xs font-extrabold text-brand-600 hover:text-brand-700 flex items-center gap-1"
+              className="text-xs font-extrabold text-[#087E83] flex items-center gap-1"
             >
               <CheckCheck className="w-4 h-4" />
               <span>تحديد الكل كمقروء</span>
@@ -61,12 +61,17 @@ export const NotificationsPage: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 pt-4 space-y-2.5">
+      <main className="px-4 lg:px-0 pt-2 lg:pt-0 max-w-3xl mx-auto space-y-3">
         {userNotifications.length === 0 ? (
-          <div className="bg-white rounded-3xl p-10 text-center border border-slate-100 shadow-card space-y-2">
-            <Bell className="w-10 h-10 text-slate-300 mx-auto" />
-            <p className="text-sm font-extrabold text-slate-700">
+          <div className="bg-white rounded-3xl py-14 px-6 text-center border border-[#E5EAED] shadow-card space-y-2.5">
+            <div className="w-14 h-14 rounded-2xl bg-[#F0F7F7] border border-[#C5E0E1] text-[#087E83] flex items-center justify-center mx-auto">
+              <Bell className="w-7 h-7 stroke-[1.7]" />
+            </div>
+            <p className="text-base font-extrabold text-[#18343B]">
               لا توجد إشعارات حالياً
+            </p>
+            <p className="text-xs text-[#74838A]">
+              ستصلك هنا تنبيهات حالة الطلبات والعروض الجديدة فور توفرها.
             </p>
           </div>
         ) : (
@@ -93,15 +98,15 @@ export const NotificationsPage: React.FC = () => {
                 }}
                 className={`p-4 rounded-2xl border transition cursor-pointer flex items-start gap-3 ${
                   notif.is_read
-                    ? 'bg-white border-slate-100 opacity-80'
-                    : 'bg-brand-50/40 border-brand-200 shadow-card'
+                    ? 'bg-white border-[#E5EAED]'
+                    : 'bg-[#F0F7F7] border-[#94C9CB] shadow-card'
                 }`}
               >
                 <div
                   className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                     notif.is_read
-                      ? 'bg-slate-100 text-slate-500'
-                      : 'bg-brand-600 text-white'
+                      ? 'bg-[#F8FAFC] text-[#74838A]'
+                      : 'bg-[#087E83] text-white'
                   }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -109,17 +114,17 @@ export const NotificationsPage: React.FC = () => {
 
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center justify-between gap-2">
-                    <h2 className="text-xs sm:text-sm font-extrabold text-slate-900">
+                    <h2 className="text-xs sm:text-sm font-extrabold text-[#18343B]">
                       {notif.title_ar}
                     </h2>
                     {!notif.is_read && (
-                      <span className="w-2.5 h-2.5 rounded-full bg-brand-600 shrink-0" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#087E83] shrink-0" />
                     )}
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
+                  <p className="text-xs text-[#74838A] leading-relaxed">
                     {notif.message_ar}
                   </p>
-                  <span className="text-[10px] text-slate-400 block">
+                  <span className="text-[10px] text-[#74838A] block">
                     {new Date(notif.created_at).toLocaleString('ar-LY', {
                       dateStyle: 'medium',
                       timeStyle: 'short',

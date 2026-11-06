@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Package,
+  FileText,
   Clock,
   CheckCircle2,
   XCircle,
@@ -12,6 +12,7 @@ import {
   Star,
   MapPin,
   History,
+  RefreshCw,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
 import { Order, OrderStatus } from '../types/database';
@@ -22,65 +23,68 @@ export const STATUS_META: Record<
 > = {
   pending_review: {
     label: 'قيد المراجعة',
-    colorClass: 'text-amber-700',
-    badgeBg: 'bg-amber-50 border-amber-200',
+    colorClass: 'text-[#18343B]',
+    badgeBg: 'bg-[#FDF8E7] border-[#F3C95B]',
   },
   accepted: {
-    label: 'مقبول',
-    colorClass: 'text-blue-700',
-    badgeBg: 'bg-blue-50 border-blue-200',
+    label: 'تم قبول الطلب',
+    colorClass: 'text-[#087E83]',
+    badgeBg: 'bg-[#EAF3F4] border-[#C5E0E1]',
   },
   preparing: {
     label: 'قيد التجهيز',
-    colorClass: 'text-brand-700',
-    badgeBg: 'bg-brand-50 border-brand-200',
+    colorClass: 'text-[#087E83]',
+    badgeBg: 'bg-[#EAF3F4] border-[#C5E0E1]',
   },
   ready_for_pickup: {
     label: 'جاهز للاستلام',
-    colorClass: 'text-indigo-700',
-    badgeBg: 'bg-indigo-50 border-indigo-200',
+    colorClass: 'text-[#087E83]',
+    badgeBg: 'bg-[#EAF3F4] border-[#C5E0E1]',
   },
   out_for_delivery: {
-    label: 'خرج للتوصيل',
-    colorClass: 'text-purple-700',
-    badgeBg: 'bg-purple-50 border-purple-200',
+    label: 'قيد التوصيل',
+    colorClass: 'text-[#087E83]',
+    badgeBg: 'bg-[#EAF3F4] border-[#C5E0E1]',
   },
   completed: {
-    label: 'مكتمل',
-    colorClass: 'text-emerald-700',
-    badgeBg: 'bg-emerald-50 border-emerald-200',
+    label: 'تم التسليم',
+    colorClass: 'text-[#087E83]',
+    badgeBg: 'bg-[#EAF3F4] border-[#94C9CB]',
   },
   rejected: {
-    label: 'مرفوض',
-    colorClass: 'text-rose-700',
-    badgeBg: 'bg-rose-50 border-rose-200',
+    label: 'ملغي',
+    colorClass: 'text-[#74838A]',
+    badgeBg: 'bg-[#F8FAFC] border-[#E5EAED]',
   },
   cancelled: {
     label: 'ملغي',
-    colorClass: 'text-slate-600',
-    badgeBg: 'bg-slate-100 border-slate-200',
+    colorClass: 'text-[#74838A]',
+    badgeBg: 'bg-[#F8FAFC] border-[#E5EAED]',
   },
 };
+
+type OrdersFilterTab = 'all' | 'active' | 'completed' | 'cancelled';
 
 export const OrdersPage: React.FC = () => {
   const navigate = useNavigate();
   const {
     currentUser,
     orders,
+    products,
     reviews,
+    addToCart,
     updateOrderStatus,
     submitReview,
+    showToast,
   } = useMarketplace();
 
-  const [tab, setTab] = useState<'active' | 'history'>('active');
-  const [expandedOrderId, setExpandedOrderId] = useState<string | null>('ord-1005');
+  const [tab, setTab] = useState<OrdersFilterTab>('all');
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
-  // Review Modal state
   const [reviewingOrder, setReviewingOrder] = useState<Order | null>(null);
   const [ratingVal, setRatingVal] = useState(5);
   const [commentVal, setCommentVal] = useState('');
 
-  // Strictly show only orders belonging to currentUser
   const myOrders = useMemo(() => {
     if (!currentUser) return [];
     return orders
@@ -91,29 +95,49 @@ export const OrdersPage: React.FC = () => {
       );
   }, [currentUser, orders]);
 
-  const activeOrders = useMemo(
-    () =>
-      myOrders.filter((o) =>
-        [
-          'pending_review',
-          'accepted',
-          'preparing',
-          'ready_for_pickup',
-          'out_for_delivery',
-        ].includes(o.status)
-      ),
-    [myOrders]
-  );
+  const displayedOrders = useMemo(() => {
+    switch (tab) {
+      case 'active':
+        return myOrders.filter((o) =>
+          [
+            'pending_review',
+            'accepted',
+            'preparing',
+            'ready_for_pickup',
+            'out_for_delivery',
+          ].includes(o.status)
+        );
+      case 'completed':
+        return myOrders.filter((o) => o.status === 'completed');
+      case 'cancelled':
+        return myOrders.filter((o) =>
+          ['cancelled', 'rejected'].includes(o.status)
+        );
+      default:
+        return myOrders;
+    }
+  }, [myOrders, tab]);
 
-  const pastOrders = useMemo(
-    () =>
-      myOrders.filter((o) =>
-        ['completed', 'rejected', 'cancelled'].includes(o.status)
-      ),
-    [myOrders]
-  );
-
-  const displayedOrders = tab === 'active' ? activeOrders : pastOrders;
+  const handleReorder = (order: Order) => {
+    let addedCount = 0;
+    for (const item of order.items) {
+      const liveProd = products.find((p) => p.id === item.product_id);
+      if (
+        liveProd &&
+        liveProd.is_active &&
+        liveProd.is_available_for_sale &&
+        liveProd.stock_quantity > 0
+      ) {
+        addToCart(liveProd, 1, item.selected_options_snapshot || {}, {});
+        addedCount++;
+      }
+    }
+    if (addedCount > 0) {
+      navigate('/cart');
+    } else {
+      showToast('عذراً، منتجات هذا الطلب غير متوفرة حالياً لإعادة الطلب', 'info');
+    }
+  };
 
   const handleReviewSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,250 +156,226 @@ export const OrdersPage: React.FC = () => {
     }
   };
 
-  if (!currentUser) {
-    return (
-      <div className="min-h-screen bg-[#F8F7FC] flex flex-col items-center justify-center p-6 text-center space-y-3">
-        <Package className="w-10 h-10 text-brand-600" />
-        <h2 className="text-base font-extrabold text-slate-800">
-          يرجى تسجيل الدخول لعرض طلباتك
-        </h2>
-        <button
-          type="button"
-          onClick={() => navigate('/account')}
-          className="px-5 py-2.5 rounded-xl bg-brand-600 text-white text-xs font-bold"
-        >
-          تسجيل الدخول
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#F8F7FC] pb-24">
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-header">
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-center">
-          <h1 className="text-lg font-extrabold text-slate-900">طلباتي</h1>
+    <div className="space-y-4">
+      <header className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E5EAED] shadow-header">
+        <div className="px-4 h-14 flex items-center justify-center">
+          <h1 className="text-lg font-extrabold text-[#18343B]">طلباتي</h1>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 pt-4 space-y-4">
-        {/* Tabs: Active vs Past Orders */}
-        <div className="grid grid-cols-2 bg-white p-1 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <button
-            type="button"
-            onClick={() => setTab('active')}
-            className={`py-2.5 rounded-xl text-xs font-extrabold transition ${
-              tab === 'active'
-                ? 'bg-brand-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            الطلبات الحالية ({activeOrders.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('history')}
-            className={`py-2.5 rounded-xl text-xs font-extrabold transition ${
-              tab === 'history'
-                ? 'bg-brand-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            الطلبات السابقة ({pastOrders.length})
-          </button>
+      <main className="px-4 lg:px-0 pt-2 lg:pt-0 space-y-4">
+        {/* 4 Tabs: جميع الطلبات | الطلبات الحالية | الطلبات المكتملة | الطلبات الملغاة */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar bg-white p-1.5 rounded-2xl border border-[#E5EAED] shadow-card">
+          {(
+            [
+              { id: 'all', label: 'جميع الطلبات' },
+              { id: 'active', label: 'الطلبات الحالية' },
+              { id: 'completed', label: 'الطلبات المكتملة' },
+              { id: 'cancelled', label: 'الطلبات الملغاة' },
+            ] as const
+          ).map((t) => {
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={`flex-1 min-w-[110px] py-2.5 px-3 rounded-xl text-xs font-extrabold whitespace-nowrap transition ${
+                  active
+                    ? 'bg-[#087E83] text-white shadow-2xs'
+                    : 'text-[#74838A] hover:text-[#18343B]'
+                }`}
+              >
+                {t.label}
+              </button>
+            );
+          })}
         </div>
 
+        {/* Orders List or Professional Empty State (Matches Section 11 & 15) */}
         {displayedOrders.length === 0 ? (
-          <div className="bg-white rounded-3xl p-10 text-center border border-slate-100 shadow-card space-y-2.5">
-            <Package className="w-10 h-10 text-slate-300 mx-auto" />
-            <p className="text-sm font-extrabold text-slate-700">
-              {tab === 'active'
-                ? 'لا توجد طلبات جارية حالياً'
-                : 'لا توجد طلبات سابقة في سجلك'}
+          <div className="bg-white rounded-3xl py-16 px-6 text-center border border-[#E5EAED] shadow-card max-w-xl mx-auto my-4 space-y-3">
+            <div className="w-16 h-16 rounded-2xl bg-[#F0F7F7] border border-[#C5E0E1] text-[#087E83] flex items-center justify-center mx-auto">
+              <FileText className="w-8 h-8 stroke-[1.7]" />
+            </div>
+            <h2 className="text-lg font-extrabold text-[#18343B]">
+              لا توجد طلبات حالياً
+            </h2>
+            <p className="text-xs sm:text-sm text-[#74838A] max-w-xs mx-auto">
+              ستظهر طلباتك هنا عند إجراء أول عملية شراء.
             </p>
-            <button
-              type="button"
-              onClick={() => navigate('/stores')}
-              className="mt-2 inline-flex px-4 py-2 rounded-xl bg-brand-600 text-white text-xs font-bold"
-            >
-              تصفح المتاجر
-            </button>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => navigate('/stores')}
+                className="inline-flex items-center px-6 h-11 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold transition"
+              >
+                تصفح المتاجر والمنتجات
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-3.5">
             {displayedOrders.map((order) => {
               const meta = STATUS_META[order.status];
               const isExpanded = expandedOrderId === order.id;
-              const hasReviewed = reviews.some(
-                (r) => r.order_id === order.id && r.user_id === currentUser.id
-              );
+              const hasReviewed = currentUser
+                ? reviews.some(
+                    (r) =>
+                      r.order_id === order.id && r.user_id === currentUser.id
+                  )
+                : false;
 
               return (
                 <div
                   key={order.id}
-                  className="bg-white rounded-2xl border border-slate-100 shadow-card overflow-hidden"
+                  className="bg-white rounded-3xl border border-[#E5EAED] shadow-card overflow-hidden"
                 >
-                  {/* Order Card Header */}
-                  <div
-                    onClick={() =>
-                      setExpandedOrderId(isExpanded ? null : order.id)
-                    }
-                    className="p-4 cursor-pointer hover:bg-slate-50/50 transition space-y-2.5"
-                  >
+                  <div className="p-4 sm:p-5 space-y-3">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2.5">
                         <span
                           dir="ltr"
-                          className="font-en text-xs font-extrabold text-brand-700 bg-brand-50 px-2.5 py-1 rounded-lg"
+                          className="font-en text-xs font-extrabold text-[#087E83] bg-[#EAF3F4] px-3 py-1 rounded-full"
                         >
                           #{order.order_number}
                         </span>
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/store/${order.store_id}`);
-                          }}
-                          className="font-en text-sm font-extrabold text-slate-900 hover:text-brand-600 flex items-center gap-1"
+                          onClick={() => navigate(`/store/${order.store_id}`)}
+                          className="text-sm font-extrabold text-[#18343B] hover:text-[#087E83] flex items-center gap-1.5"
                         >
-                          <StoreIcon className="w-3.5 h-3.5 text-brand-600" />
+                          <StoreIcon className="w-4 h-4 text-[#087E83]" />
                           {order.store_name_snapshot}
                         </button>
                       </div>
 
                       <span
-                        className={`text-[11px] font-extrabold px-2.5 py-1 rounded-full border ${meta.badgeBg} ${meta.colorClass}`}
+                        className={`text-xs font-extrabold px-3 py-1 rounded-full border ${meta.badgeBg} ${meta.colorClass}`}
                       >
                         {meta.label}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-slate-500">
+                    <div className="flex items-center justify-between flex-wrap gap-2 text-xs text-[#74838A]">
                       <div className="flex items-center gap-3">
                         <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
+                          <Clock className="w-3.5 h-3.5 text-[#087E83]" />
                           {new Date(order.created_at).toLocaleString('ar-LY', {
                             dateStyle: 'medium',
                             timeStyle: 'short',
                           })}
                         </span>
                         <span className="flex items-center gap-1">
-                          <Truck className="w-3.5 h-3.5" />
+                          <Truck className="w-3.5 h-3.5 text-[#087E83]" />
                           {order.fulfillment_method === 'campus_delivery'
                             ? 'توصيل داخل الكلية'
                             : 'استلام من المتجر'}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-extrabold text-slate-900">
-                          {order.total_lyd} د.ل
+                      <span className="text-sm font-extrabold text-[#18343B]">
+                        {order.total_lyd} د.ل
+                      </span>
+                    </div>
+
+                    {/* Action Buttons on Card: View Details + Reorder */}
+                    <div className="flex items-center justify-between pt-2 border-t border-[#E5EAED]">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedOrderId(isExpanded ? null : order.id)
+                        }
+                        className="text-xs font-extrabold text-[#087E83] flex items-center gap-1"
+                      >
+                        <span>
+                          {isExpanded ? 'إخفاء التفاصيل' : 'عرض التفاصيل'}
                         </span>
                         {isExpanded ? (
-                          <ChevronUp className="w-4 h-4 text-slate-400" />
+                          <ChevronUp className="w-4 h-4" />
                         ) : (
-                          <ChevronDown className="w-4 h-4 text-slate-400" />
+                          <ChevronDown className="w-4 h-4" />
+                        )}
+                      </button>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleReorder(order)}
+                          className="h-8 px-3.5 rounded-full bg-[#F0F7F7] hover:bg-[#E3EFEF] text-[#087E83] text-xs font-extrabold flex items-center gap-1.5 transition"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>إعادة الطلب</span>
+                        </button>
+
+                        {order.status === 'pending_review' && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateOrderStatus(
+                                order.id,
+                                'cancelled',
+                                'تم إلغاء الطلب من قبل المستخدم'
+                              )
+                            }
+                            className="h-8 px-3.5 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-[#74838A] hover:text-[#18343B] text-xs font-bold transition"
+                          >
+                            إلغاء الطلب
+                          </button>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Expanded Order Details & Status Audit Log */}
                   {isExpanded && (
-                    <div className="px-4 pb-4 pt-2 border-t border-slate-100 bg-slate-50/40 space-y-4">
-                      {/* Snapshot Items */}
+                    <div className="px-4 sm:px-5 pb-4 pt-3 border-t border-[#E5EAED] bg-[#F8FAFC] space-y-3.5">
                       <div className="space-y-2">
-                        <h3 className="text-xs font-extrabold text-slate-700">
-                          المنتجات المطلوبة:
+                        <h3 className="text-xs font-extrabold text-[#18343B]">
+                          المنتجات:
                         </h3>
                         {order.items.map((item) => (
                           <div
                             key={item.id}
-                            className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-slate-100 text-xs"
+                            className="flex items-center justify-between bg-white p-2.5 rounded-2xl border border-[#E5EAED] text-xs"
                           >
                             <div className="flex items-center gap-2.5">
                               <img
                                 src={item.product_image_snapshot}
                                 alt={item.product_name_snapshot}
-                                className="w-11 h-11 rounded-lg object-cover"
+                                className="w-11 h-11 rounded-xl object-cover border border-[#E5EAED]"
                               />
                               <div>
-                                <p className="font-extrabold text-slate-800">
+                                <p className="font-extrabold text-[#18343B]">
                                   {item.product_name_snapshot}{' '}
-                                  <span className="text-brand-600">
+                                  <span className="text-[#087E83]">
                                     × {item.quantity}
                                   </span>
                                 </p>
-                                {Object.keys(item.selected_options_snapshot)
-                                  .length > 0 && (
-                                  <p className="text-[10px] text-slate-500">
-                                    {Object.entries(
-                                      item.selected_options_snapshot
-                                    )
-                                      .map(([k, v]) => `${k}: ${v}`)
-                                      .join(' | ')}
-                                  </p>
-                                )}
                               </div>
                             </div>
-                            <span className="font-extrabold text-slate-900">
+                            <span className="font-extrabold text-[#18343B]">
                               {item.line_total_lyd} د.ل
                             </span>
                           </div>
                         ))}
                       </div>
 
-                      {/* Delivery Location & Notes */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        <div className="p-2.5 rounded-xl bg-white border border-slate-100">
-                          <span className="text-[10px] text-slate-400 font-bold block">
-                            نقطة الاستلام / التوصيل:
-                          </span>
-                          <span className="font-bold text-slate-800 flex items-center gap-1 mt-0.5">
-                            <MapPin className="w-3.5 h-3.5 text-brand-600" />
-                            {order.campus_location_ar} —{' '}
-                            {order.pickup_point_ar || 'مقر المتجر'}
-                          </span>
+                      <div className="p-3 rounded-2xl bg-white border border-[#E5EAED] space-y-2">
+                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-[#18343B]">
+                          <History className="w-3.5 h-3.5 text-[#087E83]" />
+                          <span>سجل حالة الطلب:</span>
                         </div>
-
-                        {order.customer_note && (
-                          <div className="p-2.5 rounded-xl bg-white border border-slate-100">
-                            <span className="text-[10px] text-slate-400 font-bold block">
-                              ملاحظاتك للمتجر:
-                            </span>
-                            <span className="font-semibold text-slate-700 mt-0.5 block">
-                              {order.customer_note}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Status History Timeline */}
-                      <div className="p-3 rounded-xl bg-white border border-slate-100 space-y-2">
-                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-700">
-                          <History className="w-3.5 h-3.5 text-brand-600" />
-                          <span>سجل تحديثات حالة الطلب:</span>
-                        </div>
-                        <div className="space-y-2 pr-2 border-r-2 border-brand-200">
+                        <div className="space-y-1.5 pr-2 border-r-2 border-[#94C9CB]">
                           {order.status_history.map((h) => (
                             <div
                               key={h.id}
-                              className="text-[11px] flex items-start justify-between gap-2"
+                              className="text-[11px] flex items-center justify-between"
                             >
-                              <div>
-                                <span className="font-extrabold text-slate-800">
-                                  {STATUS_META[h.status]?.label || h.status}
-                                </span>{' '}
-                                <span className="text-slate-500">
-                                  — بواسطة: {h.actor_name_ar}
-                                </span>
-                                {h.note && (
-                                  <p className="text-slate-600 mt-0.5">
-                                    {h.note}
-                                  </p>
-                                )}
-                              </div>
-                              <span className="text-[10px] text-slate-400 shrink-0">
+                              <span className="font-bold text-[#18343B]">
+                                {STATUS_META[h.status]?.label || h.status}
+                              </span>
+                              <span className="text-[10px] text-[#74838A]">
                                 {new Date(h.created_at).toLocaleTimeString(
                                   'ar-LY',
                                   { hour: '2-digit', minute: '2-digit' }
@@ -386,43 +386,18 @@ export const OrdersPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Customer Actions: Cancel if Pending, or Rate if Completed */}
-                      <div className="flex items-center justify-end gap-2 pt-1">
-                        {order.status === 'pending_review' && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateOrderStatus(
-                                order.id,
-                                'cancelled',
-                                'تم إلغاء الطلب من قبل الطالب قبل البدء بالتجهيز'
-                              )
-                            }
-                            className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-extrabold transition"
-                          >
-                            <XCircle className="w-4 h-4" />
-                            <span>إلغاء الطلب</span>
-                          </button>
-                        )}
-
-                        {order.status === 'completed' && !hasReviewed && (
+                      {order.status === 'completed' && !hasReviewed && (
+                        <div className="flex justify-end">
                           <button
                             type="button"
                             onClick={() => setReviewingOrder(order)}
-                            className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-extrabold shadow-xs transition"
+                            className="h-9 px-4 rounded-full bg-[#087E83] text-white text-xs font-extrabold flex items-center gap-1.5"
                           >
                             <Star className="w-3.5 h-3.5 fill-white" />
-                            <span>تقييم المتجر والمنتجات</span>
+                            <span>تقييم الطلب</span>
                           </button>
-                        )}
-
-                        {order.status === 'completed' && hasReviewed && (
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600">
-                            <CheckCircle2 className="w-4 h-4" />
-                            تم تقييم هذا الطلب
-                          </span>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -432,19 +407,15 @@ export const OrdersPage: React.FC = () => {
         )}
       </main>
 
-      {/* VERIFIED ORDER REVIEW MODAL */}
       {reviewingOrder && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-[#18343B]/40 backdrop-blur-xs flex items-center justify-center p-4">
           <form
             onSubmit={handleReviewSubmit}
-            className="bg-white w-full max-w-md rounded-3xl p-5 space-y-4 shadow-xl"
+            className="bg-white w-full max-w-md rounded-3xl p-5 space-y-4 shadow-xl border border-[#E5EAED]"
           >
-            <h3 className="text-base font-extrabold text-slate-900">
-              تقييم تجربتك مع {reviewingOrder.store_name_snapshot}
+            <h3 className="text-base font-extrabold text-[#18343B]">
+              تقييم المتجر: {reviewingOrder.store_name_snapshot}
             </h3>
-            <p className="text-xs text-slate-500">
-              طلب رقم #{reviewingOrder.order_number}
-            </p>
 
             <div className="flex items-center justify-center gap-2 py-2">
               {[1, 2, 3, 4, 5].map((star) => (
@@ -452,13 +423,13 @@ export const OrdersPage: React.FC = () => {
                   key={star}
                   type="button"
                   onClick={() => setRatingVal(star)}
-                  className="p-1 transition hover:scale-110"
+                  className="p-1"
                 >
                   <Star
                     className={`w-8 h-8 ${
                       star <= ratingVal
-                        ? 'text-amber-400 fill-amber-400'
-                        : 'text-slate-200'
+                        ? 'text-[#F3C95B] fill-[#F3C95B]'
+                        : 'text-[#E5EAED]'
                     }`}
                   />
                 </button>
@@ -469,21 +440,21 @@ export const OrdersPage: React.FC = () => {
               rows={3}
               value={commentVal}
               onChange={(e) => setCommentVal(e.target.value)}
-              placeholder="اكتب رأيك حول جودة المنتج وسرعة التجهيز..."
-              className="w-full p-3 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-brand-600"
+              placeholder="اكتب تعليقك..."
+              className="w-full p-3 rounded-2xl border border-[#E5EAED] text-xs focus:outline-none focus:border-[#087E83]"
             />
 
             <div className="flex items-center gap-2">
               <button
                 type="submit"
-                className="flex-1 h-10 rounded-xl bg-brand-600 text-white text-xs font-extrabold"
+                className="flex-1 h-10 rounded-full bg-[#087E83] text-white text-xs font-extrabold"
               >
                 إرسال التقييم
               </button>
               <button
                 type="button"
                 onClick={() => setReviewingOrder(null)}
-                className="px-4 h-10 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold"
+                className="px-4 h-10 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-[#74838A] text-xs font-bold"
               >
                 إلغاء
               </button>

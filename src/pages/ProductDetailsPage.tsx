@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ChevronRight,
+  ArrowRight,
   Heart,
   ShoppingCart,
   Store as StoreIcon,
@@ -45,7 +45,6 @@ export const ProductDetailsPage: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const [selectedOptionIds, setSelectedOptionIds] = useState<Record<string, string>>({});
 
-  // Initialize default available option per variant group
   useEffect(() => {
     if (!product) return;
     const initialIds: Record<string, string> = {};
@@ -62,14 +61,14 @@ export const ProductDetailsPage: React.FC = () => {
 
   if (!product || !store) {
     return (
-      <div className="min-h-screen bg-[#F8F7FC] flex flex-col items-center justify-center p-6 text-center space-y-4">
-        <p className="text-base font-extrabold text-slate-800">
-          المنتج المطلوب غير موجود.
+      <div className="py-16 px-6 text-center space-y-4 bg-white rounded-3xl border border-[#E5EAED] shadow-card max-w-lg mx-auto my-6">
+        <p className="text-base font-extrabold text-[#18343B]">
+          لا توجد بيانات لهذا المنتج حالياً
         </p>
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="px-5 py-2.5 rounded-xl bg-brand-600 text-white text-xs font-bold"
+          className="px-6 py-2.5 rounded-full bg-[#087E83] text-white text-xs font-extrabold"
         >
           العودة
         </button>
@@ -80,7 +79,6 @@ export const ProductDetailsPage: React.FC = () => {
   const isFavorite = favoritesProductIds.includes(product.id);
   const discountPercent = getProductDiscountPercent(product);
 
-  // Calculate price modifier and option stock constraint
   let priceModifier = 0;
   let effectiveStock = product.stock_quantity;
   const selectedLabels: Record<string, string> = {};
@@ -111,38 +109,36 @@ export const ProductDetailsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F7FC] pb-28">
-      {/* Top Bar */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100">
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+    <div className="space-y-4">
+      <header className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E5EAED]">
+        <div className="px-4 h-14 flex items-center justify-between">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-700"
+            className="w-9 h-9 rounded-full bg-[#F8FAFC] border border-[#E5EAED] flex items-center justify-center text-[#18343B]"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ArrowRight className="w-4 h-4" />
           </button>
-          <h1 className="text-sm font-extrabold text-slate-800 truncate max-w-[200px]">
+          <h1 className="text-sm font-extrabold text-[#18343B] truncate max-w-[200px]">
             {product.name_ar}
           </h1>
           <button
             type="button"
             onClick={() => toggleFavoriteProduct(product.id)}
-            className="w-9 h-9 rounded-full bg-slate-50 hover:bg-rose-50 flex items-center justify-center text-slate-700"
+            className="w-9 h-9 rounded-full bg-[#F8FAFC] border border-[#E5EAED] flex items-center justify-center text-[#18343B]"
           >
             <Heart
               className={`w-4 h-4 ${
-                isFavorite ? 'fill-rose-500 text-rose-500' : 'text-slate-700'
+                isFavorite ? 'fill-[#087E83] text-[#087E83]' : 'text-[#18343B]'
               }`}
             />
           </button>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 pt-4 grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Image Gallery Column */}
+      <main className="px-4 lg:px-0 pt-2 lg:pt-0 grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="space-y-3">
-          <div className="relative aspect-[4/3.5] w-full rounded-3xl bg-white border border-slate-100 shadow-card overflow-hidden">
+          <div className="relative aspect-[4/3.4] w-full rounded-3xl bg-white border border-[#E5EAED] shadow-card overflow-hidden">
             <img
               src={product.images[activeImageIdx] || product.images[0]}
               alt={product.name_ar}
@@ -151,7 +147,7 @@ export const ProductDetailsPage: React.FC = () => {
             {discountPercent !== null && discountPercent > 0 && (
               <span
                 dir="ltr"
-                className="absolute top-3 right-3 bg-[#EF5350] text-white text-xs font-extrabold px-3 py-1 rounded-full shadow"
+                className="absolute top-3 right-3 bg-[#F3C95B] text-[#18343B] text-xs font-extrabold px-3 py-1 rounded-full shadow-2xs"
               >
                 -{discountPercent}%
               </span>
@@ -165,9 +161,9 @@ export const ProductDetailsPage: React.FC = () => {
                   key={idx}
                   type="button"
                   onClick={() => setActiveImageIdx(idx)}
-                  className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition shrink-0 ${
+                  className={`w-16 h-16 rounded-2xl overflow-hidden border-2 transition shrink-0 ${
                     activeImageIdx === idx
-                      ? 'border-brand-600 shadow-xs'
+                      ? 'border-[#087E83]'
                       : 'border-transparent opacity-70 hover:opacity-100'
                   }`}
                 >
@@ -182,60 +178,50 @@ export const ProductDetailsPage: React.FC = () => {
           )}
         </div>
 
-        {/* Product Info & Options Column */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-card space-y-4 flex flex-col justify-between">
+        <div className="bg-white rounded-3xl p-5 border border-[#E5EAED] shadow-card space-y-4 flex flex-col justify-between">
           <div className="space-y-4">
-            {/* Store & Category Pill Row */}
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <button
                 type="button"
                 onClick={() => navigate(`/store/${store.id}`)}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-50 text-brand-700 hover:bg-brand-100 text-xs font-extrabold transition"
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#EAF3F4] text-[#087E83] text-xs font-extrabold transition"
               >
                 <StoreIcon className="w-3.5 h-3.5" />
-                <span className="font-en">{store.name_en}</span>
+                <span>{store.name_ar || store.name_en}</span>
               </button>
 
               {category && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[11px] font-bold">
-                  <Tag className="w-3 h-3" />
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-[#74838A] text-[11px] font-bold">
+                  <Tag className="w-3 h-3 text-[#087E83]" />
                   {category.name_ar}
                 </span>
               )}
             </div>
 
-            {/* Product Title & Price */}
             <div>
-              <h2 className="text-lg font-extrabold text-slate-900">
+              <h2 className="text-lg font-extrabold text-[#18343B]">
                 {product.name_ar}
               </h2>
-              {product.name_en && (
-                <p dir="ltr" className="font-en text-xs text-slate-400 text-right">
-                  {product.name_en}
-                </p>
-              )}
 
               <div className="flex items-baseline gap-2.5 mt-2">
-                <span className="text-2xl font-extrabold text-brand-700">
+                <span className="text-2xl font-extrabold text-[#087E83]">
                   {finalUnitPrice} <span className="text-sm">د.ل</span>
                 </span>
                 {finalOldPrice && finalOldPrice > finalUnitPrice && (
-                  <span className="text-sm text-slate-400 line-through">
+                  <span className="text-sm text-[#74838A] line-through">
                     {finalOldPrice} د.ل
                   </span>
                 )}
               </div>
             </div>
 
-            {/* Description */}
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed bg-slate-50/80 p-3 rounded-xl border border-slate-100">
+            <p className="text-xs sm:text-sm text-[#74838A] leading-relaxed bg-[#F8FAFC] p-3.5 rounded-2xl border border-[#E5EAED]">
               {product.description_ar}
             </p>
 
-            {/* Variant Groups (Sizes, Colors, Options) */}
             {product.variant_groups.map((group) => (
               <div key={group.id} className="space-y-2">
-                <label className="block text-xs font-extrabold text-slate-700">
+                <label className="block text-xs font-extrabold text-[#18343B]">
                   {group.name_ar}:
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -251,29 +237,16 @@ export const ProductDetailsPage: React.FC = () => {
                             ...prev,
                             [group.id]: opt.id,
                           }));
-                          if (quantity > opt.stock_quantity && opt.stock_quantity > 0) {
-                            setQuantity(opt.stock_quantity);
-                          }
                         }}
                         className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${
                           isSelected
-                            ? 'border-brand-600 bg-brand-600 text-white shadow-xs'
+                            ? 'border-[#087E83] bg-[#087E83] text-white'
                             : optOut
-                            ? 'border-slate-200 bg-slate-100 text-slate-400 line-through'
-                            : 'border-slate-200 bg-white text-slate-700 hover:border-brand-300'
+                            ? 'border-[#E5EAED] bg-[#F8FAFC] text-[#74838A] line-through'
+                            : 'border-[#E5EAED] bg-white text-[#18343B] hover:border-[#36A6A6]'
                         }`}
                       >
                         <span>{opt.label_ar}</span>
-                        {opt.price_modifier_lyd > 0 && (
-                          <span className="text-[10px] opacity-90">
-                            (+{opt.price_modifier_lyd} د.ل)
-                          </span>
-                        )}
-                        {optOut && (
-                          <span className="text-[10px] text-rose-500 font-extrabold no-underline">
-                            (نفد)
-                          </span>
-                        )}
                       </button>
                     );
                   })}
@@ -281,64 +254,56 @@ export const ProductDetailsPage: React.FC = () => {
               </div>
             ))}
 
-            {/* Stock Availability Indicator */}
-            <div className="flex items-center justify-between pt-1">
+            <div>
               {isOutOfStock ? (
-                <div className="inline-flex items-center gap-1.5 text-rose-600 bg-rose-50 px-3 py-1.5 rounded-xl text-xs font-bold">
+                <div className="inline-flex items-center gap-1.5 text-[#74838A] bg-[#F8FAFC] border border-[#E5EAED] px-3 py-1.5 rounded-xl text-xs font-bold">
                   <AlertCircle className="w-4 h-4" />
-                  <span>هذا الخيار غير متوفر في المخزون حالياً</span>
+                  <span>غير متوفر حالياً</span>
                 </div>
               ) : (
-                <div className="inline-flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl text-xs font-bold">
+                <div className="inline-flex items-center gap-1.5 text-[#087E83] bg-[#EAF3F4] px-3 py-1.5 rounded-xl text-xs font-bold">
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>الكمية المتاحة في المخزون: {effectiveStock}</span>
+                  <span>متوفر ({effectiveStock})</span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Quantity Selector + Add to Cart CTA */}
-          <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
-            {/* Quantity Stepper */}
-            <div className="flex items-center bg-slate-100 rounded-xl p-1">
+          <div className="pt-4 border-t border-[#E5EAED] flex items-center gap-3">
+            <div className="flex items-center bg-[#F8FAFC] border border-[#E5EAED] rounded-xl p-1">
               <button
                 type="button"
                 disabled={isOutOfStock || quantity <= 1}
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="w-9 h-9 rounded-lg bg-white text-slate-700 flex items-center justify-center disabled:opacity-40 shadow-2xs"
+                className="w-9 h-9 rounded-lg bg-white text-[#18343B] flex items-center justify-center disabled:opacity-40"
               >
                 <Minus className="w-4 h-4" />
               </button>
-              <span className="w-10 text-center font-en font-extrabold text-sm text-slate-800">
+              <span className="w-10 text-center font-en font-extrabold text-sm text-[#18343B]">
                 {quantity}
               </span>
               <button
                 type="button"
                 disabled={isOutOfStock || quantity >= effectiveStock}
                 onClick={() => setQuantity((q) => Math.min(effectiveStock, q + 1))}
-                className="w-9 h-9 rounded-lg bg-white text-slate-700 flex items-center justify-center disabled:opacity-40 shadow-2xs"
+                className="w-9 h-9 rounded-lg bg-white text-[#18343B] flex items-center justify-center disabled:opacity-40"
               >
                 <Plus className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Add to Cart Button */}
             <button
               type="button"
               disabled={isOutOfStock}
               onClick={handleAdd}
-              className={`flex-1 h-11 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 transition active:scale-98 ${
+              className={`flex-1 h-11 rounded-full font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 transition active:scale-98 ${
                 isOutOfStock
-                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  : 'bg-brand-600 hover:bg-brand-700 text-white shadow-md'
+                  ? 'bg-[#E5EAED] text-[#74838A] cursor-not-allowed'
+                  : 'bg-[#087E83] hover:bg-[#06666A] text-white shadow-sm'
               }`}
             >
               <ShoppingCart className="w-4 h-4" />
-              <span>
-                {isOutOfStock
-                  ? 'نفدت الكمية من المخزون'
-                  : `إضافة إلى السلة • ${finalUnitPrice * quantity} د.ل`}
-              </span>
+              <span>إضافة إلى السلة • {finalUnitPrice * quantity} د.ل</span>
             </button>
           </div>
         </div>

@@ -1,25 +1,34 @@
-# PROJECT_STATE.md — CampusMarket (سوق الكلية الجامعي)
+# CampusMarket — سوق الكلية الجامعي (`PROJECT_STATE.md`)
 
 ## 1. Project Overview & Tech Stack
-- **Project Name**: **CampusMarket – سوق الكلية الجامعي** (Complete University Marketplace Platform).
-- **Primary Currency & Locale**: Libyan Dinar (`LYD` / `د.ل`) with native Arabic RTL (`ar-LY`) and bidirectional English (`Inter` + `IBM Plex Sans Arabic` / `Cairo`) typography.
+- **Platform**: **CampusMarket – سوق الكلية الجامعي** (Complete University Marketplace Platform — v2.0 Turquoise Redesign).
 - **Tech Stack**:
-  - **Frontend**: React 18 + TypeScript + Vite 6 + React Router v7 + Lucide Icons.
-  - **Styling**: Tailwind CSS 3 with custom brand purple tokens (`brand-50` to `brand-900`), soft elevation shadows, and logical RTL layouts.
-  - **Database & Security**: Full PostgreSQL schema with Row-Level Security (RLS) policies in [`supabase/schema.sql`](file:///C:/Users/Taha/.gemini/antigravity/scratch/campus-market/supabase/schema.sql) covering all 30 required tables (`users`, `user_profiles`, `roles`, `permissions`, `stores`, `store_members`, `store_categories`, `categories`, `products`, `product_images`, `product_variants`, `inventory`, `inventory_movements`, `carts`, `cart_items`, `orders`, `order_items`, `order_status_history`, `payments`, `delivery_options`, `locations`, `reviews`, `favorites`, `notifications`, `banners`, `offers`, `store_invitations`, `platform_settings`, `subscriptions`, `commissions`, `audit_logs`) paired with a persistent reactive data engine in [`MarketplaceContext.tsx`](file:///C:/Users/Taha/.gemini/antigravity/scratch/campus-market/src/context/MarketplaceContext.tsx).
+  - Frontend: React 19 + TypeScript + Tailwind CSS v3 + Lucide Icons + React Router v7 (`HashRouter` for GitHub Pages compatibility).
+  - Typography: `IBM Plex Sans Arabic` + `Plus Jakarta Sans` (RTL-first, Libyan Dinar `د.ل` currency).
+  - Cloud Backend: Node.js + Express + PostgreSQL (`kuro_cloud`) hosted on **Libyan Spider Cloud VPS** (`102.203.202.115`), proxied via HTTPS Caddy at `https://api.kurofangs.id.ly/campus-market/api/*`.
+  - Live Deployment: GitHub Pages (`https://7ij0d.github.io/campus-market/`).
 
-## 2. Done & Verified
-- **Visual Fidelity to Reference Image**:
-  - **Home Page ([`HomePage.tsx`](file:///C:/Users/Taha/.gemini/antigravity/scratch/campus-market/src/pages/HomePage.tsx))**: Built with exact visual alignment to Screen 1 — compact Header with graduation cap emblem, `CampusMarket` + `سوق الكلية الجامعي`, Cart badge, Notifications indicator, Profile icon; Search bar + Campus Location selector (`داخل الكلية`); Purple promotional Banner with university items & pagination dots; Horizontal scrollable Categories (`الكل`, `خدمات`, `إلكترونيات`, `ملابس`, `قرطاسية`, `مأكولات ومشروبات`, `إكسسوارات`); Platform-wide Most Ordered Products (`المنتجات الأكثر طلباً`) in a 2-column mobile grid; Special Offers (`عروض خاصة`); and **zero Featured Stores section on the Home Page** as strictly instructed.
-  - **Stores Page ([`StoresPage.tsx`](file:///C:/Users/Taha/.gemini/antigravity/scratch/campus-market/src/pages/StoresPage.tsx))**: Built to match Screen 2 — centered `المتاجر` title, `ابحث عن متجر...` search bar, horizontal category filter pills (`الكل`, `ملابس`, `مأكولات`, `قرطاسية`, `خدمات`) + filter button, and structured Store Cards (`Campus Coffee`, `PrintHub`, `BookZone`, `UniWear`) with circular emblem icons, activity type, star ratings, open/closed badge, and right-aligned store thumbnail.
-  - **Store Details Page ([`StoreDetailsPage.tsx`](file:///C:/Users/Taha/.gemini/antigravity/scratch/campus-market/src/pages/StoreDetailsPage.tsx))**: Built to match Screen 3 — cover banner with store watermark, overlapping circular store emblem, store title & description, rating + green `مفتوح الآن` pill, metadata pills (`داخل الكلية`, `توصيل داخل الكلية`, `08:00 - 18:00`), 4 tabs (`المنتجات`, `التصنيفات`, `التقييمات`, `عن المتجر`), store-isolated `🔥 المنتجات الأكثر طلباً` calculated strictly from completed orders of that store alone, internal store categories filter, and `جميع المنتجات` with sorting and grid/list toggle.
-  - **Unified Product Card ([`ProductCard.tsx`](file:///C:/Users/Taha/.gemini/antigravity/scratch/campus-market/src/components/ProductCard.tsx))**: Unified dimensions, top-right coral discount badge (`-20%`, `-15%`), top-left circular favorite heart button, current price in Libyan Dinars (`د.ل`) + strikethrough old price, and compact purple add-to-cart button.
-- **Full Functional Subsystems**:
-  - **Product Details ([`ProductDetailsPage.tsx`](file:///C:/Users/Taha/.gemini/antigravity/scratch/campus-market/src/pages/ProductDetailsPage.tsx))**: Multi-image viewer, variant selection (sizes, colors, options) with per-option stock validation, out-of-stock protection, and quantity stepper.
-  - **Multi-Store Shopping Cart ([`CartPage.tsx`](file:///C:/Users/Taha/.gemini/antigravity/scratch/campus-market/src/pages/CartPage.tsx))**: Groups items by store, allows independent pickup vs. campus delivery selection and store notes per store, and re-verifies live prices and stock before creating independent orders per store.
-  - **Orders & Status History ([`OrdersPage.tsx`](file:///C:/Users/Taha/.gemini/antigravity/scratch/campus-market/src/pages/OrdersPage.tsx))**: Full 8-stage status lifecycle, audit timeline with actor & timestamp, customer cancellation of pending orders (with automatic stock restoration), and verified post-completion store reviews.
-  - **Merchant Dashboard ([`MerchantDashboardPage.tsx`](file:///C:/Users/Taha/.gemini/antigravity/scratch/campus-market/src/pages/MerchantDashboardPage.tsx))**: Strictly isolated to the merchant's own store (`store_id`), featuring 8 real KPIs, product & variant CRUD, inventory management, order acceptance/rejection/status progression, store settings, and sales analytics.
-  - **Admin Dashboard ([`AdminDashboardPage.tsx`](file:///C:/Users/Taha/.gemini/antigravity/scratch/campus-market/src/pages/AdminDashboardPage.tsx))**: Full platform command center with store approval/suspension, merchant invitation token generator (`INV-DENTAL-2026`), product & review moderation, categories & banner management, configurable revenue model (commission %, subscription LYD, or hybrid), and 1-click purge/restore of demo data.
+## 2. Done & Verified (v2.0 Turquoise Redesign)
+- **Complete Visual & Identity Redesign**:
+  - Primary Dark Turquoise: `#087E83`
+  - Secondary Medium Turquoise: `#36A6A6`
+  - Main Background: `#F8FAFC`
+  - Card Surface: `#FFFFFF`
+  - Primary Text (Deep Navy): `#18343B`
+  - Secondary Text (Slate Gray): `#74838A`
+  - Borders & Dividers: `#E5EAED`
+  - Offer / Highlight Accent (Calm Golden Yellow): `#F3C95B`
+  - Strictly removed all old purple, orange, and red primary colors across all pages and dashboards.
+- **Responsive Multi-Device Architecture (Mobile, Tablet, Laptop, Desktop)**:
+  - **Mobile & Tablet**: Clean top header + content layout + fixed 5-item bottom navigation (`الرئيسية`, `البحث`, `المتاجر`, `طلباتي`, `حسابي`).
+  - **Desktop & Laptop (`lg+`)**: Full top header with logo on the right, navigation pills in the center, profile/notifications/favorites on the left, wide search bar + `داخل الكلية` location selector, fixed right sidebar, and 2-column side-by-side sections for `المنتجات الأكثر طلباً` and `العروض الخاصة`.
+- **Zero Demo / Fake Data Policy & Professional Empty States**:
+  - Purged all demo stores, demo products, fake ratings, and fake orders from both local seed data (`src/data/seedData.ts`) and the **Libyan Spider PostgreSQL (`kuro_cloud`)** database (`stores: 0, products: 0, orders: 0`).
+  - Implemented the exact Empty States shown in the reference designs for Home (`لا توجد منتجات حالياً`, `لا توجد عروض حالياً`), Stores (`لا توجد متاجر حالياً` + `+ كن تاجراً في CampusMarket`), Store Details (`/store/preview` & `/store/:storeId`), Search (`لا توجد نتائج مطابقة لبحثك`), Cart (`سلتك فارغة`), Orders (`لا توجد طلبات حالياً`), and Guest Account (`مرحباً بك - سجل الدخول لإدارة حسابك`).
+- **Connected Admin & Merchant Dashboards (`/admin` & `/merchant`)**:
+  - Full Turquoise redesign of `AdminDashboardPage.tsx` and `MerchantDashboardPage.tsx`.
+  - Direct creation of Stores, Products, Services, Special Offers, Categories, and Banners from `/admin` immediately updates the live storefront and syncs to the Libyan Spider Cloud database.
 
-## 3. Immediate Next Step
-- Verify the production build output (`npm run build`), start the live development server, and present the complete platform and role-switching walkthrough to the user.
+## 3. Immediate Next Steps
+- Add real student stores, products, and campus services via `/#/admin` or `/#/merchant`.
+- Optional future enhancements: Push notifications (Web Push) and PDF invoice generation for completed campus orders.

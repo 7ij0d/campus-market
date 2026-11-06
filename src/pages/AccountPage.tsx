@@ -1,38 +1,46 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   User as UserIcon,
   Heart,
   Bell,
-  Package,
+  ShoppingBag,
   LogOut,
   ShieldCheck,
   Briefcase,
-  KeyRound,
-  Mail,
-  Phone,
-  Building2,
-  CheckCircle2,
-  Sparkles,
-  Store as StoreIcon,
+  MapPin,
+  Settings,
+  Headphones,
+  Info,
   ChevronLeft,
+  Ticket,
+  Globe,
+  FileText,
+  Star,
+  MessageSquare,
+  Wallet,
+  X,
+  Store as StoreIcon,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
 import { ProductCard } from '../components/ProductCard';
 
 export const AccountPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const {
     currentUser,
-    users,
     locations,
+    selectedLocationId,
+    selectedPickupPoint,
+    setSelectedLocationId,
+    setSelectedPickupPoint,
     products,
     stores,
     favoritesProductIds,
     favoritesStoreIds,
     unreadNotificationsCount,
     loginByEmail,
-    switchQuickAccount,
     registerCustomer,
     registerMerchantByInvite,
     logout,
@@ -40,30 +48,38 @@ export const AccountPage: React.FC = () => {
     showToast,
   } = useMarketplace();
 
-  const [authTab, setAuthTab] = useState<
-    'login' | 'register' | 'merchant_invite' | 'forgot'
-  >('login');
-  const [loginEmail, setLoginEmail] = useState('student@campus.edu.ly');
+  const [authModalMode, setAuthModalMode] = useState<
+    null | 'login' | 'register' | 'merchant_invite'
+  >(null);
+  const [activeSubModal, setActiveSubModal] = useState<
+    null | 'favorites' | 'locations' | 'settings' | 'support' | 'about' | 'coupons'
+  >(null);
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'merchant_invite') {
+      setAuthModalMode('merchant_invite');
+    }
+  }, [searchParams]);
+
+  // Login State
+  const [loginEmail, setLoginEmail] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Customer Registration State
+  // Customer Register State
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPhone, setRegPhone] = useState('');
-  const [regStudentId, setRegStudentId] = useState('');
   const [regLocId, setRegLocId] = useState('loc-main');
 
-  // Merchant Invite Registration State
-  const [invToken, setInvToken] = useState('INV-DENTAL-2026');
+  // Merchant Invite State
+  const [invToken, setInvToken] = useState('');
   const [mOwnerName, setMOwnerName] = useState('');
   const [mEmail, setMEmail] = useState('');
   const [mPhone, setMPhone] = useState('');
-  const [mStoreEn, setMStoreEn] = useState('');
-  const [mStoreAr, setMStoreAr] = useState('');
+  const [mStoreName, setMStoreName] = useState('');
   const [mActivity, setMActivity] = useState('');
   const [mDesc, setMDesc] = useState('');
-  const [mCampusLoc, setMCampusLoc] = useState('داخل الكلية');
-  const [mHours, setMHours] = useState('08:30 - 17:00');
 
   // Profile Edit State
   const [editMode, setEditMode] = useState(false);
@@ -83,18 +99,22 @@ export const AccountPage: React.FC = () => {
     [stores, favoritesStoreIds]
   );
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
     const res = loginByEmail(loginEmail);
-    if (!res.success) setAuthError(res.error || 'خطأ في الدخول');
+    if (!res.success) {
+      setAuthError(res.error || 'تعذر تسجيل الدخول');
+    } else {
+      setAuthModalMode(null);
+    }
   };
 
-  const handleCustomerRegister = (e: React.FormEvent) => {
+  const handleCustomerRegisterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
     if (!regName || !regEmail || !regPhone) {
-      setAuthError('يرجى تعبئة جميع الحقول الأساسية.');
+      setAuthError('يرجى إدخال الاسم والبريد الإلكتروني ورقم الهاتف.');
       return;
     }
     const res = registerCustomer({
@@ -102,486 +122,231 @@ export const AccountPage: React.FC = () => {
       email: regEmail,
       phone: regPhone,
       faculty_location_id: regLocId,
-      student_id_number: regStudentId,
     });
-    if (!res.success) setAuthError(res.error || 'تعذر التسجيل');
+    if (!res.success) {
+      setAuthError(res.error || 'تعذر إنشاء الحساب');
+    } else {
+      setAuthModalMode(null);
+    }
   };
 
-  const handleMerchantInviteRegister = (e: React.FormEvent) => {
+  const handleMerchantInviteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
-    if (!invToken || !mOwnerName || !mEmail || !mStoreEn || !mActivity) {
-      setAuthError('يرجى تعبئة رمز الدعوة وبيانات المتجر الأساسية.');
+    if (!invToken || !mOwnerName || !mEmail || !mStoreName || !mActivity) {
+      setAuthError('يرجى تعبئة جميع الحقول المطلوبة لتسجيل المتجر.');
       return;
     }
     const res = registerMerchantByInvite({
       token: invToken,
       full_name: mOwnerName,
       email: mEmail,
-      phone: mPhone || '0910000000',
-      store_name_en: mStoreEn,
-      store_name_ar: mStoreAr || mStoreEn,
+      phone: mPhone,
+      store_name_en: mStoreName,
+      store_name_ar: mStoreName,
       activity_type_ar: mActivity,
       description_ar: mDesc || mActivity,
-      location_inside_campus: mCampusLoc,
-      working_hours: mHours,
+      location_inside_campus: 'داخل الكلية',
+      working_hours: '08:30 - 17:00',
     });
-    if (!res.success) setAuthError(res.error || 'تعذر تسجيل المتجر');
+    if (!res.success) {
+      setAuthError(res.error || 'رمز الدعوة غير صالح');
+    } else {
+      setAuthModalMode(null);
+      navigate('/merchant');
+    }
   };
 
+  const mainMenuItems = [
+    {
+      id: 'orders',
+      label: 'طلباتي',
+      icon: ShoppingBag,
+      action: () => navigate('/orders'),
+    },
+    {
+      id: 'favorites',
+      label: 'المفضلة',
+      icon: Heart,
+      action: () => setActiveSubModal('favorites'),
+    },
+    {
+      id: 'locations',
+      label: 'العناوين ونقاط الاستلام',
+      icon: MapPin,
+      action: () => setActiveSubModal('locations'),
+    },
+    {
+      id: 'notifications',
+      label: `الإشعارات${unreadNotificationsCount > 0 ? ` (${unreadNotificationsCount})` : ''}`,
+      icon: Bell,
+      action: () => navigate('/notifications'),
+    },
+    {
+      id: 'coupons',
+      label: 'الكوبونات والعروض',
+      icon: Ticket,
+      action: () => setActiveSubModal('coupons'),
+    },
+    {
+      id: 'settings',
+      label: 'الإعدادات واللغة',
+      icon: Settings,
+      action: () => setActiveSubModal('settings'),
+    },
+    {
+      id: 'support',
+      label: 'المساعدة والدعم',
+      icon: Headphones,
+      action: () => setActiveSubModal('support'),
+    },
+    {
+      id: 'about',
+      label: 'عن التطبيق والأحكام والشروط',
+      icon: Info,
+      action: () => setActiveSubModal('about'),
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#F8F7FC] pb-28">
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-header">
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-center">
-          <h1 className="text-lg font-extrabold text-slate-900">حسابي</h1>
+    <div className="space-y-4">
+      {/* Mobile Header: حسابي (Matches Reference Image 3 Screen 4) */}
+      <header className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E5EAED] shadow-header">
+        <div className="px-4 h-14 flex items-center justify-center">
+          <h1 className="text-[18px] font-extrabold text-[#18343B]">حسابي</h1>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 pt-4 space-y-5">
-        {/* QUICK ROLE SWITCHER FOR TESTING ALL ROLES SEAMLESSLY */}
-        <section className="bg-gradient-to-l from-brand-900 via-brand-800 to-slate-900 text-white rounded-2xl p-4 shadow-card space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-brand-300" />
-              <h2 className="text-xs font-extrabold">
-                بوابة تبديل الحسابات السريعة (لاختبار جميع صلاحيات المنصة)
-              </h2>
-            </div>
-            <span className="text-[10px] bg-white/15 px-2.5 py-0.5 rounded-full font-bold">
-              RBAC Live Switcher
-            </span>
+      <main className="px-4 lg:px-0 pt-2 lg:pt-0 max-w-2xl mx-auto space-y-5">
+        {/* =====================================================================
+            TOP USER / GUEST PROFILE CARD (Exact match to Reference Image 3 Screen 4)
+        ===================================================================== */}
+        <section className="bg-white rounded-3xl p-6 border border-[#E5EAED] shadow-card text-center space-y-4">
+          {/* Circular User Avatar Silhouette */}
+          <div className="w-20 h-20 rounded-full bg-[#DCE8EA] text-[#6B8A8F] flex items-center justify-center mx-auto overflow-hidden">
+            {currentUser ? (
+              <span className="text-2xl font-extrabold text-[#087E83]">
+                {currentUser.full_name.charAt(0)}
+              </span>
+            ) : (
+              <UserIcon className="w-11 h-11 stroke-[1.8]" />
+            )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-            {users.map((u) => {
-              const isCurrent = currentUser?.id === u.id;
-              const roleBadge =
-                u.role === 'super_admin'
-                  ? 'مدير عام المنصة'
-                  : u.role === 'merchant'
-                  ? 'تاجر / صاحب متجر'
-                  : 'طالب / مشتري';
-              return (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => switchQuickAccount(u.id)}
-                  className={`p-2.5 rounded-xl border text-right transition flex items-center justify-between ${
-                    isCurrent
-                      ? 'bg-white text-slate-900 border-white shadow-sm'
-                      : 'bg-white/10 hover:bg-white/20 text-white border-white/15'
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <p className="text-xs font-extrabold truncate">{u.full_name}</p>
-                    <p
-                      className={`text-[10px] font-bold ${
-                        isCurrent ? 'text-brand-600' : 'text-brand-200'
-                      }`}
-                    >
-                      {roleBadge}
-                    </p>
-                  </div>
-                  {isCurrent && (
-                    <CheckCircle2 className="w-4 h-4 text-brand-600 shrink-0" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* IF LOGGED OUT: SHOW AUTH FORMS */}
-        {!currentUser ? (
-          <section className="bg-white rounded-3xl p-5 border border-slate-100 shadow-card max-w-lg mx-auto space-y-4">
-            <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl text-xs font-extrabold">
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthTab('login');
-                  setAuthError(null);
-                }}
-                className={`py-2 rounded-lg transition ${
-                  authTab === 'login'
-                    ? 'bg-white text-brand-700 shadow-2xs'
-                    : 'text-slate-600'
-                }`}
-              >
-                تسجيل الدخول
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthTab('register');
-                  setAuthError(null);
-                }}
-                className={`py-2 rounded-lg transition ${
-                  authTab === 'register'
-                    ? 'bg-white text-brand-700 shadow-2xs'
-                    : 'text-slate-600'
-                }`}
-              >
-                حساب طالب جديد
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthTab('merchant_invite');
-                  setAuthError(null);
-                }}
-                className={`py-2 rounded-lg transition ${
-                  authTab === 'merchant_invite'
-                    ? 'bg-white text-brand-700 shadow-2xs'
-                    : 'text-slate-600'
-                }`}
-              >
-                تسجيل متجر بدعوة
-              </button>
-            </div>
-
-            {authError && (
-              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold">
-                {authError}
-              </div>
-            )}
-
-            {authTab === 'login' && (
-              <form onSubmit={handleLogin} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    البريد الإلكتروني الجامعي أو الشخصي
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    كلمة المرور
-                  </label>
-                  <input
-                    type="password"
-                    defaultValue="12345678"
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs"
-                  />
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setAuthTab('forgot')}
-                    className="text-brand-600 font-bold hover:underline"
-                  >
-                    نسيت كلمة المرور؟
-                  </button>
-                </div>
-                <button
-                  type="submit"
-                  className="w-full h-11 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-extrabold"
-                >
-                  دخول إلى المنصة
-                </button>
-              </form>
-            )}
-
-            {authTab === 'register' && (
-              <form onSubmit={handleCustomerRegister} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    الاسم الثلاثي للطالب
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={regName}
-                    onChange={(e) => setRegName(e.target.value)}
-                    placeholder="مثال: محمد الفيتوري"
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs"
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      البريد الإلكتروني
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder="name@campus.edu.ly"
-                      className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      رقم الهاتف (ليبيا)
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      value={regPhone}
-                      onChange={(e) => setRegPhone(e.target.value)}
-                      placeholder="091XXXXXXX"
-                      className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      الكلية / الموقع الجامعي
-                    </label>
-                    <select
-                      value={regLocId}
-                      onChange={(e) => setRegLocId(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs bg-white"
-                    >
-                      {locations.map((l) => (
-                        <option key={l.id} value={l.id}>
-                          {l.name_ar}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      رقم القيد الجامعي (اختياري)
-                    </label>
-                    <input
-                      type="text"
-                      value={regStudentId}
-                      onChange={(e) => setRegStudentId(e.target.value)}
-                      placeholder="2024XXXX"
-                      className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs"
-                    />
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  className="w-full h-11 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-extrabold"
-                >
-                  إنشاء حساب طالب جديد
-                </button>
-              </form>
-            )}
-
-            {authTab === 'merchant_invite' && (
-              <form onSubmit={handleMerchantInviteRegister} className="space-y-3">
-                <div className="p-2.5 rounded-xl bg-brand-50 border border-brand-100 text-[11px] text-brand-800 font-semibold">
-                  يخضع إنشاء المتاجر لسيطرة إدارة المنصة. أدخل رمز الدعوة الممنوح لك
-                  (مثال متاح للتجربة: <strong dir="ltr">INV-DENTAL-2026</strong>).
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    رمز الدعوة الخاص بالتاجر (Invitation Token)
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    dir="ltr"
-                    value={invToken}
-                    onChange={(e) => setInvToken(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-brand-300 font-en font-bold text-xs bg-brand-50/30"
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      اسم صاحب المتجر
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={mOwnerName}
-                      onChange={(e) => setMOwnerName(e.target.value)}
-                      placeholder="د. طه السنوسي"
-                      className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      البريد الإلكتروني للتاجر
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      value={mEmail}
-                      onChange={(e) => setMEmail(e.target.value)}
-                      placeholder="merchant@campus.edu.ly"
-                      className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      اسم المتجر (بالإنجليزية)
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={mStoreEn}
-                      onChange={(e) => setMStoreEn(e.target.value)}
-                      placeholder="DentalKit Store"
-                      className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      نوع النشاط (بالعربية)
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={mActivity}
-                      onChange={(e) => setMActivity(e.target.value)}
-                      placeholder="مستلزمات وأدوات طب الأسنان"
-                      className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    وصف مختصر للمتجر
-                  </label>
-                  <input
-                    type="text"
-                    value={mDesc}
-                    onChange={(e) => setMDesc(e.target.value)}
-                    placeholder="نوفر جميع الأدوات السريرية والمخبرية لطلبة الكلية..."
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full h-11 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-extrabold"
-                >
-                  تفعيل المتجر والدخول للوحة التاجر
-                </button>
-              </form>
-            )}
-
-            {authTab === 'forgot' && (
-              <div className="space-y-3">
-                <p className="text-xs text-slate-600">
-                  أدخل بريدك الإلكتروني الجامعي لإرسال رابط استعادة كلمة المرور:
+          {!currentUser ? (
+            <>
+              <div className="space-y-1">
+                <h2 className="text-lg font-extrabold text-[#18343B]">مرحباً بك</h2>
+                <p className="text-xs font-medium text-[#74838A]">
+                  سجل الدخول لإدارة حسابك
                 </p>
-                <input
-                  type="email"
-                  placeholder="student@campus.edu.ly"
-                  className="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs"
-                />
+              </div>
+
+              <div className="space-y-2.5 max-w-xs mx-auto pt-1">
                 <button
                   type="button"
                   onClick={() => {
-                    showToast('تم إرسال رابط استعادة كلمة المرور إلى بريدك الإلكتروني');
-                    setAuthTab('login');
+                    setAuthError(null);
+                    setAuthModalMode('login');
                   }}
-                  className="w-full h-10 rounded-xl bg-brand-600 text-white text-xs font-extrabold"
+                  className="w-full h-11 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs sm:text-sm font-extrabold shadow-xs transition active:scale-98"
                 >
-                  إرسال رابط الاستعادة
+                  تسجيل الدخول
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthError(null);
+                    setAuthModalMode('register');
+                  }}
+                  className="w-full h-11 rounded-full bg-white hover:bg-[#F0F7F7] text-[#087E83] border border-[#94C9CB] text-xs sm:text-sm font-extrabold transition active:scale-98"
+                >
+                  إنشاء حساب جديد
                 </button>
               </div>
-            )}
-          </section>
-        ) : (
-          /* IF LOGGED IN: SHOW PROFILE + ROLE DASHBOARD SHORTCUTS + FAVORITES */
-          <div className="space-y-5">
-            {/* User Card */}
-            <section className="bg-white rounded-3xl p-5 border border-slate-100 shadow-card space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-14 h-14 rounded-2xl bg-brand-100 text-brand-700 flex items-center justify-center font-extrabold text-xl">
-                    {currentUser.full_name.charAt(0)}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-base font-extrabold text-slate-900">
-                        {currentUser.full_name}
-                      </h2>
-                      <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-brand-50 text-brand-700">
-                        {currentUser.role === 'super_admin'
-                          ? 'Super Admin'
-                          : currentUser.role === 'admin'
-                          ? 'Admin'
-                          : currentUser.role === 'merchant'
-                          ? 'حساب تاجر'
-                          : 'حساب طالب'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                      <span className="flex items-center gap-1">
-                        <Mail className="w-3.5 h-3.5" />
-                        {currentUser.email}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5" />
-                        {currentUser.phone}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+            </>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <h2 className="text-lg font-extrabold text-[#18343B]">
+                  {currentUser.full_name}
+                </h2>
+                <p className="text-xs text-[#74838A] mt-0.5">
+                  {currentUser.email} {currentUser.phone ? `• ${currentUser.phone}` : ''}
+                </p>
+              </div>
 
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileName(currentUser.full_name);
+                    setProfilePhone(currentUser.phone);
+                    setProfileLoc(currentUser.faculty_location_id);
+                    setEditMode((prev) => !prev);
+                  }}
+                  className="h-9 px-4 rounded-full bg-[#F0F7F7] hover:bg-[#E3EFEF] text-[#087E83] text-xs font-extrabold transition"
+                >
+                  {editMode ? 'إلغاء التعديل' : 'تعديل المعلومات الشخصية'}
+                </button>
+
+                {currentUser.role === 'merchant' && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setProfileName(currentUser.full_name);
-                      setProfilePhone(currentUser.phone);
-                      setProfileLoc(currentUser.faculty_location_id);
-                      setEditMode((prev) => !prev);
-                    }}
-                    className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition"
+                    onClick={() => navigate('/merchant')}
+                    className="h-9 px-4 rounded-full bg-[#087E83] text-white text-xs font-extrabold flex items-center gap-1.5"
                   >
-                    {editMode ? 'إلغاء التعديل' : 'تعديل الحساب'}
+                    <Briefcase className="w-3.5 h-3.5" />
+                    <span>لوحة المتجر</span>
                   </button>
+                )}
+
+                {(currentUser.role === 'admin' ||
+                  currentUser.role === 'super_admin') && (
                   <button
                     type="button"
-                    onClick={logout}
-                    className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold flex items-center gap-1 transition"
+                    onClick={() => navigate('/admin')}
+                    className="h-9 px-4 rounded-full bg-[#18343B] text-white text-xs font-extrabold flex items-center gap-1.5"
                   >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>خروج</span>
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>لوحة إدارة المنصة</span>
                   </button>
-                </div>
+                )}
               </div>
 
               {editMode && (
-                <div className="pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="pt-3 border-t border-[#E5EAED] text-right space-y-3 max-w-sm mx-auto">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-500 mb-1">
+                    <label className="block text-[11px] font-bold text-[#74838A] mb-1">
                       الاسم الكامل
                     </label>
                     <input
                       type="text"
                       value={profileName}
                       onChange={(e) => setProfileName(e.target.value)}
-                      className="w-full h-9 px-3 rounded-xl border border-slate-200 text-xs"
+                      className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-500 mb-1">
+                    <label className="block text-[11px] font-bold text-[#74838A] mb-1">
                       رقم الهاتف
                     </label>
                     <input
                       type="text"
                       value={profilePhone}
                       onChange={(e) => setProfilePhone(e.target.value)}
-                      className="w-full h-9 px-3 rounded-xl border border-slate-200 text-xs"
+                      className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-500 mb-1">
-                      الكلية
+                    <label className="block text-[11px] font-bold text-[#74838A] mb-1">
+                      الجامعة أو الكلية
                     </label>
                     <select
                       value={profileLoc}
                       onChange={(e) => setProfileLoc(e.target.value)}
-                      className="w-full h-9 px-3 rounded-xl border border-slate-200 text-xs bg-white"
+                      className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs bg-white"
                     >
                       {locations.map((l) => (
                         <option key={l.id} value={l.id}>
@@ -590,164 +355,507 @@ export const AccountPage: React.FC = () => {
                       ))}
                     </select>
                   </div>
-                  <div className="sm:col-span-3 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        updateUserProfile({
-                          full_name: profileName,
-                          phone: profilePhone,
-                          faculty_location_id: profileLoc,
-                        });
-                        setEditMode(false);
-                      }}
-                      className="px-5 py-2 rounded-xl bg-brand-600 text-white text-xs font-extrabold"
-                    >
-                      حفظ التغييرات
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateUserProfile({
+                        full_name: profileName,
+                        phone: profilePhone,
+                        faculty_location_id: profileLoc,
+                      });
+                      setEditMode(false);
+                    }}
+                    className="w-full h-10 rounded-full bg-[#087E83] text-white text-xs font-extrabold"
+                  >
+                    حفظ التغييرات
+                  </button>
                 </div>
               )}
+            </div>
+          )}
+        </section>
 
-              {/* Role Portal Cards (Merchant Dashboard / Admin Dashboard) */}
-              {currentUser.role === 'merchant' && (
-                <div
-                  onClick={() => navigate('/merchant')}
-                  className="p-4 rounded-2xl bg-gradient-to-l from-brand-700 to-brand-600 text-white flex items-center justify-between cursor-pointer shadow-sm hover:opacity-95 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
-                      <Briefcase className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-extrabold">
-                        لوحة تحكم التاجر (Merchant Dashboard)
-                      </h3>
-                      <p className="text-xs text-brand-100">
-                        إدارة منتجات متجرك، المخزون، الطلبات الواردة، والتقارير المالية
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronLeft className="w-5 h-5" />
+        {/* =====================================================================
+            QUICK CARDS ROW (المفضلة | طلباتي | المساعدة والدعم | المحفظة)
+        ===================================================================== */}
+        <div className="grid grid-cols-4 gap-2.5">
+          <button
+            type="button"
+            onClick={() => navigate('/orders')}
+            className="bg-white rounded-2xl p-3 border border-[#E5EAED] shadow-card hover:border-[#087E83] flex flex-col items-center justify-center gap-1.5 transition"
+          >
+            <ShoppingBag className="w-5 h-5 text-[#087E83]" />
+            <span className="text-[11px] font-extrabold text-[#18343B]">طلباتي</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveSubModal('favorites')}
+            className="bg-white rounded-2xl p-3 border border-[#E5EAED] shadow-card hover:border-[#087E83] flex flex-col items-center justify-center gap-1.5 transition"
+          >
+            <Heart className="w-5 h-5 text-[#087E83]" />
+            <span className="text-[11px] font-extrabold text-[#18343B]">المفضلة</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveSubModal('support')}
+            className="bg-white rounded-2xl p-3 border border-[#E5EAED] shadow-card hover:border-[#087E83] flex flex-col items-center justify-center gap-1.5 transition"
+          >
+            <Headphones className="w-5 h-5 text-[#087E83]" />
+            <span className="text-[11px] font-extrabold text-[#18343B]">المساعدة</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveSubModal('coupons')}
+            className="bg-white rounded-2xl p-3 border border-[#E5EAED] shadow-card hover:border-[#087E83] flex flex-col items-center justify-center gap-1.5 transition"
+          >
+            <Wallet className="w-5 h-5 text-[#087E83]" />
+            <span className="text-[11px] font-extrabold text-[#18343B]">المحفظة</span>
+          </button>
+        </div>
+
+        {/* =====================================================================
+            MAIN LIST CONTAINER (Matches Reference Image 3 Screen 4)
+        ===================================================================== */}
+        <section className="bg-white rounded-3xl border border-[#E5EAED] shadow-card divide-y divide-[#E5EAED] overflow-hidden">
+          {mainMenuItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={item.action}
+                className="w-full px-5 py-4 flex items-center justify-between hover:bg-[#F8FAFC] transition text-right"
+              >
+                <div className="flex items-center gap-3.5">
+                  <Icon className="w-5 h-5 text-[#18343B] stroke-[1.8]" />
+                  <span className="text-xs sm:text-sm font-extrabold text-[#18343B]">
+                    {item.label}
+                  </span>
                 </div>
-              )}
+                <ChevronLeft className="w-4 h-4 text-[#74838A]" />
+              </button>
+            );
+          })}
+        </section>
 
-              {(currentUser.role === 'admin' ||
-                currentUser.role === 'super_admin') && (
-                <div
-                  onClick={() => navigate('/admin')}
-                  className="p-4 rounded-2xl bg-gradient-to-l from-slate-900 to-brand-900 text-white flex items-center justify-between cursor-pointer shadow-sm hover:opacity-95 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
-                      <ShieldCheck className="w-5 h-5 text-brand-300" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-extrabold">
-                        لوحة الإدارة الشاملة (Admin Command Center)
-                      </h3>
-                      <p className="text-xs text-slate-300">
-                        إدارة المتاجر، دعوات التجار، التصنيفات، البانرات، العمولات، والتقارير
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronLeft className="w-5 h-5" />
-                </div>
-              )}
-
-              {/* Quick Navigation Links */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => navigate('/orders')}
-                  className="p-3 rounded-2xl bg-slate-50 hover:bg-brand-50 border border-slate-100 flex items-center gap-2.5 transition"
-                >
-                  <Package className="w-5 h-5 text-brand-600" />
-                  <div className="text-right">
-                    <p className="text-xs font-extrabold text-slate-800">طلباتي</p>
-                    <p className="text-[10px] text-slate-400">متابعة وسجل الطلبات</p>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => navigate('/notifications')}
-                  className="p-3 rounded-2xl bg-slate-50 hover:bg-brand-50 border border-slate-100 flex items-center gap-2.5 transition"
-                >
-                  <Bell className="w-5 h-5 text-brand-600" />
-                  <div className="text-right">
-                    <p className="text-xs font-extrabold text-slate-800">
-                      الإشعارات ({unreadNotificationsCount})
-                    </p>
-                    <p className="text-[10px] text-slate-400">تنبيهات الطلبات والعروض</p>
-                  </div>
-                </button>
-
-                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-2.5 col-span-2 sm:col-span-1">
-                  <Building2 className="w-5 h-5 text-brand-600" />
-                  <div className="text-right">
-                    <p className="text-xs font-extrabold text-slate-800">
-                      {locations.find((l) => l.id === currentUser.faculty_location_id)
-                        ?.name_ar || 'داخل الكلية'}
-                    </p>
-                    <p className="text-[10px] text-slate-400">الموقع الجامعي الافتراضي</p>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Wishlist / Favorites Section (المفضلة) */}
-            <section className="space-y-3">
-              <div className="flex items-center gap-1.5">
-                <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
-                <h2 className="text-sm font-extrabold text-slate-900">
-                  المتاجر والمنتجات المفضلة
-                </h2>
-              </div>
-
-              {favStores.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {favStores.map((st) => (
-                    <div
-                      key={st.id}
-                      onClick={() => navigate(`/store/${st.id}`)}
-                      className="bg-white p-3 rounded-2xl border border-slate-100 shadow-card flex items-center justify-between cursor-pointer hover:border-brand-200 transition"
-                    >
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={st.logo_url}
-                          alt={st.name_en}
-                          className="w-11 h-11 rounded-xl object-cover"
-                        />
-                        <div>
-                          <h3 className="font-en font-extrabold text-sm text-slate-900">
-                            {st.name_en}
-                          </h3>
-                          <p className="text-xs text-slate-500">{st.activity_type_ar}</p>
-                        </div>
-                      </div>
-                      <StoreIcon className="w-4 h-4 text-brand-600" />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {favProducts.length === 0 ? (
-                <div className="bg-white rounded-2xl p-6 text-center border border-slate-100 text-xs text-slate-400">
-                  لم تقم بإضافة منتجات إلى المفضلة بعد. اضغط على أيقونة القلب ❤️ على أي
-                  منتج لحفظه هنا.
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {favProducts.map((prod) => (
-                    <ProductCard key={prod.id} product={prod} showStoreName />
-                  ))}
-                </div>
-              )}
-            </section>
+        {/* Admin & Merchant Portal Access Card */}
+        <section className="bg-white rounded-3xl p-4 border border-[#E5EAED] shadow-card flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#EAF3F4] text-[#087E83] flex items-center justify-center">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-xs font-extrabold text-[#18343B]">
+                إدارة المنصة والمتاجر
+              </h3>
+              <p className="text-[11px] text-[#74838A]">
+                إضافة المتاجر والمنتجات والأقسام والبانرات من لوحة الإدارة
+              </p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => navigate('/admin')}
+            className="h-9 px-4 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold shrink-0 transition"
+          >
+            لوحة الإدارة
+          </button>
+        </section>
+
+        {/* Calm Logout Button at Bottom when Logged In (Requirement 12: No harsh red) */}
+        {currentUser && (
+          <button
+            type="button"
+            onClick={logout}
+            className="w-full h-12 rounded-2xl bg-white hover:bg-[#F0F7F7] border border-[#E5EAED] text-[#18343B] text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 shadow-card transition"
+          >
+            <LogOut className="w-4 h-4 text-[#74838A]" />
+            <span>تسجيل الخروج</span>
+          </button>
         )}
       </main>
+
+      {/* =====================================================================
+          AUTH MODAL (Login / Create Student Account / Merchant Invite)
+      ===================================================================== */}
+      {authModalMode && (
+        <div className="fixed inset-0 z-50 bg-[#18343B]/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-3xl p-6 space-y-4 shadow-xl border border-[#E5EAED]">
+            <div className="flex items-center justify-between border-b border-[#E5EAED] pb-3">
+              <h3 className="text-base font-extrabold text-[#18343B]">
+                {authModalMode === 'login'
+                  ? 'تسجيل الدخول'
+                  : authModalMode === 'register'
+                  ? 'إنشاء حساب جديد'
+                  : 'الانضمام كتاجر في CampusMarket'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setAuthModalMode(null)}
+                className="w-8 h-8 rounded-full bg-[#F8FAFC] flex items-center justify-center text-[#74838A]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {authError && (
+              <div className="p-3 rounded-xl bg-[#FDF8E7] border border-[#F3C95B] text-[#18343B] text-xs font-bold">
+                {authError}
+              </div>
+            )}
+
+            {authModalMode === 'login' && (
+              <form onSubmit={handleLoginSubmit} className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    البريد الإلكتروني
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    placeholder="example@campusmarket.ly"
+                    className="w-full h-11 px-3.5 rounded-xl border border-[#E5EAED] text-xs focus:outline-none focus:border-[#087E83]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    كلمة المرور
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    className="w-full h-11 px-3.5 rounded-xl border border-[#E5EAED] text-xs focus:outline-none focus:border-[#087E83]"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full h-11 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold"
+                >
+                  تسجيل الدخول
+                </button>
+                <div className="text-center pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setAuthModalMode('register')}
+                    className="text-xs font-bold text-[#087E83] hover:underline"
+                  >
+                    ليس لديك حساب؟ إنشاء حساب جديد
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {authModalMode === 'register' && (
+              <form onSubmit={handleCustomerRegisterSubmit} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    الاسم الكامل
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={regName}
+                    onChange={(e) => setRegName(e.target.value)}
+                    placeholder="الاسم الثلاثي"
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    البريد الإلكتروني
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    placeholder="name@university.edu.ly"
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    رقم الهاتف
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={regPhone}
+                    onChange={(e) => setRegPhone(e.target.value)}
+                    placeholder="091XXXXXXX"
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    الجامعة أو الكلية
+                  </label>
+                  <select
+                    value={regLocId}
+                    onChange={(e) => setRegLocId(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs bg-white"
+                  >
+                    {locations.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name_ar}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="submit"
+                  className="w-full h-11 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold"
+                >
+                  إنشاء الحساب
+                </button>
+              </form>
+            )}
+
+            {authModalMode === 'merchant_invite' && (
+              <form onSubmit={handleMerchantInviteSubmit} className="space-y-3">
+                <p className="text-xs text-[#74838A]">
+                  أدخل رمز دعوة التاجر الصادر من إدارة المنصة لتسجيل متجرك:
+                </p>
+                <input
+                  type="text"
+                  required
+                  dir="ltr"
+                  value={invToken}
+                  onChange={(e) => setInvToken(e.target.value)}
+                  placeholder="Invitation Token"
+                  className="w-full h-10 px-3 rounded-xl border border-[#94C9CB] text-xs font-en font-bold"
+                />
+                <input
+                  type="text"
+                  required
+                  value={mOwnerName}
+                  onChange={(e) => setMOwnerName(e.target.value)}
+                  placeholder="اسم صاحب المتجر"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
+                />
+                <input
+                  type="email"
+                  required
+                  value={mEmail}
+                  onChange={(e) => setMEmail(e.target.value)}
+                  placeholder="البريد الإلكتروني"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
+                />
+                <input
+                  type="text"
+                  required
+                  value={mStoreName}
+                  onChange={(e) => setMStoreName(e.target.value)}
+                  placeholder="اسم المتجر"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
+                />
+                <input
+                  type="text"
+                  required
+                  value={mActivity}
+                  onChange={(e) => setMActivity(e.target.value)}
+                  placeholder="نوع النشاط أو الخدمة"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
+                />
+                <button
+                  type="submit"
+                  className="w-full h-11 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold"
+                >
+                  تسجيل المتجر
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          SUB-MODALS FOR FAVORITES, LOCATIONS, SETTINGS, SUPPORT, ABOUT
+      ===================================================================== */}
+      {activeSubModal && (
+        <div className="fixed inset-0 z-50 bg-[#18343B]/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-3xl p-6 space-y-4 shadow-xl border border-[#E5EAED] max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#E5EAED] pb-3">
+              <h3 className="text-base font-extrabold text-[#18343B]">
+                {activeSubModal === 'favorites'
+                  ? 'المفضلة'
+                  : activeSubModal === 'locations'
+                  ? 'العناوين ونقاط الاستلام داخل الكلية'
+                  : activeSubModal === 'settings'
+                  ? 'الإعدادات واللغة'
+                  : activeSubModal === 'support'
+                  ? 'المساعدة والدعم'
+                  : activeSubModal === 'coupons'
+                  ? 'المحفظة والكوبونات'
+                  : 'عن CampusMarket'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setActiveSubModal(null)}
+                className="w-8 h-8 rounded-full bg-[#F8FAFC] flex items-center justify-center text-[#74838A]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {activeSubModal === 'favorites' && (
+              <div className="space-y-4">
+                {favStores.length === 0 && favProducts.length === 0 ? (
+                  <div className="py-8 text-center space-y-2">
+                    <Heart className="w-9 h-9 text-[#087E83] mx-auto stroke-[1.7]" />
+                    <p className="text-sm font-extrabold text-[#18343B]">
+                      قائمة المفضلة فارغة حالياً
+                    </p>
+                    <p className="text-xs text-[#74838A]">
+                      يمكنك حفظ المتاجر والمنتجات للوصول السريع إليها لاحقاً.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {favStores.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-extrabold text-[#74838A]">
+                          المتاجر المفضلة
+                        </h4>
+                        {favStores.map((st) => (
+                          <div
+                            key={st.id}
+                            onClick={() => {
+                              setActiveSubModal(null);
+                              navigate(`/store/${st.id}`);
+                            }}
+                            className="p-3 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] flex items-center justify-between cursor-pointer"
+                          >
+                            <span className="text-xs font-extrabold text-[#18343B]">
+                              {st.name_ar || st.name_en}
+                            </span>
+                            <ChevronLeft className="w-4 h-4 text-[#74838A]" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {favProducts.length > 0 && (
+                      <div className="grid grid-cols-2 gap-3">
+                        {favProducts.map((p) => (
+                          <ProductCard key={p.id} product={p} showStoreName />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {activeSubModal === 'locations' && (
+              <div className="space-y-3">
+                <label className="block text-xs font-bold text-[#74838A]">
+                  الكلية المعتمدة:
+                </label>
+                <select
+                  value={selectedLocationId}
+                  onChange={(e) => setSelectedLocationId(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-bold bg-[#F8FAFC]"
+                >
+                  {locations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name_ar} — {l.campus_name_ar}
+                    </option>
+                  ))}
+                </select>
+
+                <label className="block text-xs font-bold text-[#74838A]">
+                  نقطة الاستلام داخل الكلية:
+                </label>
+                <select
+                  value={selectedPickupPoint}
+                  onChange={(e) => setSelectedPickupPoint(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-bold bg-white"
+                >
+                  {(
+                    locations.find((l) => l.id === selectedLocationId) ||
+                    locations[0]
+                  ).pickup_points.map((pt) => (
+                    <option key={pt} value={pt}>
+                      {pt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {activeSubModal === 'settings' && (
+              <div className="space-y-3 text-xs">
+                <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] flex items-center justify-between">
+                  <span className="font-extrabold text-[#18343B]">اللغة</span>
+                  <span className="font-bold text-[#087E83]">العربية (RTL)</span>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] flex items-center justify-between">
+                  <span className="font-extrabold text-[#18343B]">العملة</span>
+                  <span className="font-bold text-[#087E83]">
+                    الدينار الليبي (د.ل)
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {activeSubModal === 'coupons' && (
+              <div className="py-6 text-center space-y-2">
+                <Ticket className="w-9 h-9 text-[#087E83] mx-auto stroke-[1.7]" />
+                <p className="text-sm font-extrabold text-[#18343B]">
+                  لا توجد كوبونات فعالة حالياً
+                </p>
+                <p className="text-xs text-[#74838A]">
+                  ستظهر قسائم الخصم والرصيد هنا فور توفرها.
+                </p>
+              </div>
+            )}
+
+            {activeSubModal === 'support' && (
+              <div className="space-y-3 text-xs text-[#74838A] leading-relaxed">
+                <p className="font-bold text-[#18343B]">
+                  فريق دعم CampusMarket – سوق الكلية الجامعي
+                </p>
+                <p>
+                  للاستفسارات المتعلقة بالطلبات أو الانضمام كتاجر داخل الحرم
+                  الجامعي، يمكنك التواصل معنا مباشرة أو إرسال ملاحظاتك.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    showToast('تم إرسال رسالتك إلى فريق الدعم');
+                    setActiveSubModal(null);
+                  }}
+                  className="w-full h-10 rounded-full bg-[#087E83] text-white font-extrabold"
+                >
+                  شارك ملاحظاتك معنا
+                </button>
+              </div>
+            )}
+
+            {activeSubModal === 'about' && (
+              <div className="space-y-3 text-xs text-[#74838A] leading-relaxed">
+                <p className="font-extrabold text-[#18343B]">
+                  CampusMarket – سوق الكلية الجامعي
+                </p>
+                <p>
+                  منصة إلكترونية تجمع احتياجات الطلبة الجامعية من منتجات وخدمات
+                  ومستلزمات دراسية ومشاريع طلابية في مكان واحد داخل الكلية.
+                </p>
+                <div className="pt-2 border-t border-[#E5EAED] flex items-center justify-between text-[11px]">
+                  <span>الأحكام والشروط • سياسة الخصوصية</span>
+                  <span className="font-en font-bold text-[#087E83]">v2.0</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
