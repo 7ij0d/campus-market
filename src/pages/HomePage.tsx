@@ -80,11 +80,12 @@ export const HomePage: React.FC = () => {
             <img
               src={
                 currentBanner?.image_url ||
-                `${import.meta.env.BASE_URL}banner-campus-art.jpg`
+                '/campus-market/banner-campus-art.jpg'
               }
               alt="CampusMarket"
               onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = `${import.meta.env.BASE_URL}banner-campus-art.jpg`;
+                (e.currentTarget as HTMLImageElement).src =
+                  '/campus-market/banner-campus-art.jpg';
               }}
               className="w-full h-full object-contain mix-blend-multiply"
             />

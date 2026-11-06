@@ -16,43 +16,46 @@ import {
 } from '../types/database';
 
 export const INITIAL_PLATFORM_SETTINGS: PlatformSettings = {
-  id: '1',
-  platform_name_en: 'CampusMarket',
-  platform_name_ar: 'سوق الكلية الجامعي',
-  currency_code: 'LYD',
-  currency_symbol_ar: 'د.ل',
   revenue_model: 'hybrid',
   commission_rate_percent: 5,
   monthly_subscription_lyd: 50,
-  allow_new_merchant_requests: true,
-  maintenance_mode: false,
+  currency_symbol_ar: 'د.ل',
+  allow_demo_data: false,
 };
 
 export const INITIAL_LOCATIONS: CampusLocation[] = [
   {
     id: 'loc-main',
     name_ar: 'داخل الكلية',
+    campus_name_ar: 'الحرم الجامعي الرئيسي',
     pickup_points: [
       'البوابة الرئيسية للكلية',
       'الساحة الطلابية المركزية',
       'مبنى القاعات الدراسية',
       'مكتبة الكلية',
     ],
+    is_active: true,
   },
   {
     id: 'loc-it',
     name_ar: 'مبنى تقنية المعلومات',
+    campus_name_ar: 'الحرم الجامعي الرئيسي',
     pickup_points: ['مدخل المعامل', 'القاعة الكبرى'],
+    is_active: true,
   },
   {
     id: 'loc-eng',
     name_ar: 'مبنى الهندسة',
+    campus_name_ar: 'الحرم الجامعي الرئيسي',
     pickup_points: ['بهو الهندسة', 'المعمل المركزي'],
+    is_active: true,
   },
   {
     id: 'loc-med',
     name_ar: 'مجمع الكليات الطبية',
+    campus_name_ar: 'المجمع الطبي',
     pickup_points: ['بوابة الطب البشري', 'بوابة طب الأسنان'],
+    is_active: true,
   },
 ];
 
