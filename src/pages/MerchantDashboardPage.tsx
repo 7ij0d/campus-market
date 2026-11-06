@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Briefcase,
@@ -16,10 +16,14 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
+  Upload,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
 import { Product } from '../types/database';
 import { STATUS_META } from './OrdersPage';
+import { StoreCard } from '../components/StoreCard';
+import { compressImageFile } from '../utils/imageUpload';
 
 type MerchantTab = 'overview' | 'orders' | 'products' | 'settings' | 'reports';
 
@@ -40,9 +44,10 @@ export const MerchantDashboardPage: React.FC = () => {
     deleteMerchantProduct,
     updateMerchantStoreInfo,
     addMerchantStoreCategory,
+    showToast,
   } = useMarketplace();
 
-  const [activeTab, setActiveTab] = useState<MerchantTab>('overview');
+  const [activeTab, setActiveTab] = useState<MerchantTab>('settings');
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
   const [rejectingOrderId, setRejectingOrderId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -56,6 +61,49 @@ export const MerchantDashboardPage: React.FC = () => {
     () => stores.find((s) => s.id === currentUser?.store_id),
     [stores, currentUser]
   );
+
+  // Store Settings & Images State (Section 6 & 7)
+  const [storeName, setStoreName] = useState(
+    merchantStore?.name_ar || merchantStore?.name_en || ''
+  );
+  const [storeActivity, setStoreActivity] = useState(
+    merchantStore?.activity_type_ar || ''
+  );
+  const [storeDesc, setStoreDesc] = useState(
+    merchantStore?.description_ar || ''
+  );
+  const [storeLoc, setStoreLoc] = useState(
+    merchantStore?.location_inside_campus || ''
+  );
+  const [storeHours, setStoreHours] = useState(
+    merchantStore?.working_hours || ''
+  );
+  const [storePhone, setStorePhone] = useState(
+    merchantStore?.contact_phone || ''
+  );
+  const [storeDeliveryFee, setStoreDeliveryFee] = useState(
+    merchantStore?.delivery_fee_lyd ?? 3
+  );
+  const [storeLogoUrl, setStoreLogoUrl] = useState(
+    merchantStore?.logo_url || ''
+  );
+  const [storeCoverUrl, setStoreCoverUrl] = useState(
+    merchantStore?.cover_url || ''
+  );
+
+  useEffect(() => {
+    if (merchantStore) {
+      setStoreName(merchantStore.name_ar || merchantStore.name_en || '');
+      setStoreActivity(merchantStore.activity_type_ar || '');
+      setStoreDesc(merchantStore.description_ar || '');
+      setStoreLoc(merchantStore.location_inside_campus || '');
+      setStoreHours(merchantStore.working_hours || '');
+      setStorePhone(merchantStore.contact_phone || '');
+      setStoreDeliveryFee(merchantStore.delivery_fee_lyd ?? 3);
+      setStoreLogoUrl(merchantStore.logo_url || '');
+      setStoreCoverUrl(merchantStore.cover_url || '');
+    }
+  }, [merchantStore]);
 
   const myProducts = useMemo(() => {
     if (!merchantStore) return [];
@@ -93,15 +141,8 @@ export const MerchantDashboardPage: React.FC = () => {
       (sum, o) => sum + o.total_lyd,
       0
     );
-    const avgOrderValue =
-      completedCount > 0
-        ? Math.round((totalRevenue / completedCount) * 10) / 10
-        : 0;
     const activeProds = myProducts.filter(
       (p) => p.is_active && p.is_available_for_sale && p.stock_quantity > 0
-    ).length;
-    const outOfStockProds = myProducts.filter(
-      (p) => !p.is_available_for_sale || p.stock_quantity <= 0
     ).length;
 
     return {
@@ -110,9 +151,7 @@ export const MerchantDashboardPage: React.FC = () => {
       preparingOrders,
       completedCount,
       totalRevenue,
-      avgOrderValue,
       activeProds,
-      outOfStockProds,
     };
   }, [myOrders, myProducts]);
 
@@ -126,26 +165,6 @@ export const MerchantDashboardPage: React.FC = () => {
     return myProducts.filter((p) => !soldSet.has(p.id));
   }, [myProducts, bestSellingMetrics]);
 
-  const [storeNameEn, setStoreNameEn] = useState(merchantStore?.name_en || '');
-  const [storeActivity, setStoreActivity] = useState(
-    merchantStore?.activity_type_ar || ''
-  );
-  const [storeDesc, setStoreDesc] = useState(
-    merchantStore?.description_ar || ''
-  );
-  const [storeLoc, setStoreLoc] = useState(
-    merchantStore?.location_inside_campus || ''
-  );
-  const [storeHours, setStoreHours] = useState(
-    merchantStore?.working_hours || ''
-  );
-  const [storePhone, setStorePhone] = useState(
-    merchantStore?.contact_phone || ''
-  );
-  const [storeDeliveryFee, setStoreDeliveryFee] = useState(
-    merchantStore?.delivery_fee_lyd ?? 3
-  );
-
   if (!currentUser || currentUser.role !== 'merchant' || !merchantStore) {
     const merchantAccounts = users.filter((u) => u.role === 'merchant');
     return (
@@ -155,10 +174,10 @@ export const MerchantDashboardPage: React.FC = () => {
             <Briefcase className="w-7 h-7" />
           </div>
           <h1 className="text-base font-extrabold text-[#18343B]">
-            لوحة تحكم المتجر
+            لوحة صاحب المتجر
           </h1>
           <p className="text-xs text-[#74838A]">
-            هذه الصفحة مخصصة لأصحاب المتاجر المسجلين في المنصة.
+            هذه الصفحة مخصصة لأصحاب المتاجر المسجلين في المنصة لإدارة صور المتجر والمنتجات والطلبات.
           </p>
           {merchantAccounts.length > 0 ? (
             <div className="grid grid-cols-1 gap-2 text-right">
@@ -179,7 +198,7 @@ export const MerchantDashboardPage: React.FC = () => {
               onClick={() => navigate('/account?become_merchant=1')}
               className="w-full h-11 rounded-full bg-[#087E83] text-white text-xs font-extrabold"
             >
-              تسجيل متجر جديد في CampusMarket
+              اشترك بمتجرك في CampusMarket
             </button>
           )}
           <button
@@ -206,6 +225,41 @@ export const MerchantDashboardPage: React.FC = () => {
     setEditingProduct(null);
   };
 
+  const handleUploadStoreLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await compressImageFile(file, 400, 400, 0.86);
+      setStoreLogoUrl(dataUrl);
+      showToast('تم تجهيز الصورة المصغرة — اضغط حفظ التعديلات لاعتمادها', 'info');
+    } catch {
+      showToast('تعذر قراءة ملف الصورة', 'error');
+    }
+  };
+
+  const handleUploadStoreCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await compressImageFile(file, 1200, 600, 0.86);
+      setStoreCoverUrl(dataUrl);
+      showToast('تم تجهيز بانر المتجر — اضغط حفظ التعديلات لاعتماده', 'info');
+    } catch {
+      showToast('تعذر قراءة ملف البانر', 'error');
+    }
+  };
+
+  const handleUploadProductImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingProduct) return;
+    try {
+      const dataUrl = await compressImageFile(file, 800, 800, 0.85);
+      setEditingProduct({ ...editingProduct, images: [dataUrl] });
+    } catch {
+      showToast('تعذر قراءة صورة المنتج', 'error');
+    }
+  };
+
   return (
     <div className="space-y-5">
       {/* Top Merchant Header */}
@@ -221,16 +275,21 @@ export const MerchantDashboardPage: React.FC = () => {
               <ArrowRight className="w-4 h-4" />
             </button>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[11px] font-bold bg-[#087E83] px-2.5 py-0.5 rounded-full">
-                  لوحة التاجر
+                  لوحة صاحب المتجر
                 </span>
                 <h1 className="text-base font-extrabold">
                   {merchantStore.name_ar || merchantStore.name_en}
                 </h1>
+                {merchantStore.status === 'pending' && (
+                  <span className="text-[10px] font-extrabold bg-[#F3C95B] text-[#18343B] px-2.5 py-0.5 rounded-full">
+                    بانتظار اعتماد الإدارة
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-[#B9DDE0] mt-0.5">
-                {merchantStore.activity_type_ar} • إدارة منتجات وطلبات المتجر
+                {merchantStore.activity_type_ar} • إدارة صور المتجر والمنتجات والطلبات
               </p>
             </div>
           </div>
@@ -253,7 +312,7 @@ export const MerchantDashboardPage: React.FC = () => {
                 }`}
               />
               <span>
-                {merchantStore.is_open ? 'المتجر مفتوح الآن' : 'المتجر مغلق'}
+                {merchantStore.is_open ? 'المتجر مفتوح الآن' : 'المتجر مغلق الآن'}
               </span>
             </button>
 
@@ -262,7 +321,7 @@ export const MerchantDashboardPage: React.FC = () => {
               onClick={() => navigate(`/store/${merchantStore.id}`)}
               className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold"
             >
-              معاينة المتجر
+              معاينة صفحة متجري
             </button>
           </div>
         </div>
@@ -271,18 +330,18 @@ export const MerchantDashboardPage: React.FC = () => {
         <div className="mt-4 pt-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar border-t border-white/10">
           {(
             [
-              { id: 'overview', label: 'نظرة عامة', icon: Briefcase },
-              {
-                id: 'orders',
-                label: `الطلبات (${kpiStats.newOrders})`,
-                icon: ShoppingBag,
-              },
+              { id: 'settings', label: 'صور وبيانات المتجر', icon: ImageIcon },
               {
                 id: 'products',
                 label: `المنتجات والخدمات (${myProducts.length})`,
                 icon: Package,
               },
-              { id: 'settings', label: 'إعدادات المتجر', icon: Settings },
+              {
+                id: 'orders',
+                label: `الطلبات (${kpiStats.newOrders})`,
+                icon: ShoppingBag,
+              },
+              { id: 'overview', label: 'نظرة عامة', icon: Briefcase },
               { id: 'reports', label: 'التقارير', icon: BarChart3 },
             ] as const
           ).map((t) => {
@@ -308,99 +367,354 @@ export const MerchantDashboardPage: React.FC = () => {
       </header>
 
       <main className="space-y-5">
-        {activeTab === 'overview' && (
-          <div className="space-y-5">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-white p-4 rounded-2xl border border-[#E5EAED] shadow-card">
-                <span className="text-[11px] font-bold text-[#74838A]">
-                  إجمالي المبيعات المكتملة
-                </span>
-                <p className="text-xl font-extrabold text-[#087E83] mt-1">
-                  {kpiStats.totalRevenue} د.ل
-                </p>
+        {/* TAB: STORE IMAGES & SETTINGS (Section 6 & 7) */}
+        {activeTab === 'settings' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {/* Right Column: Live Store Images & Info Form */}
+            <div className="lg:col-span-7 bg-white rounded-3xl p-5 border border-[#E5EAED] shadow-card space-y-5">
+              <h2 className="text-sm sm:text-base font-extrabold text-[#18343B] border-b border-[#E5EAED] pb-3">
+                إدارة صور المتجر (الصورة المصغرة والبانر) والبيانات الأساسية
+              </h2>
+
+              {/* Store Thumbnail & Wide Banner Upload Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* 1. Store Thumbnail (Logo) */}
+                <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-[#18343B]">
+                      أ. صورة المتجر المصغرة
+                    </span>
+                    {storeLogoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setStoreLogoUrl('')}
+                        className="text-[11px] font-bold text-rose-600 flex items-center gap-1 hover:underline"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>حذف الصورة</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <label className="w-full h-10 px-3 rounded-xl bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer transition">
+                    <Upload className="w-4 h-4" />
+                    <span>{storeLogoUrl ? 'تغيير الصورة المصغرة' : 'رفع صورة مصغرة'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadStoreLogo}
+                      className="hidden"
+                    />
+                  </label>
+
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={storeLogoUrl}
+                    onChange={(e) => setStoreLogoUrl(e.target.value)}
+                    placeholder="أو الصق رابط الصورة المصغرة..."
+                    className="w-full h-9 px-3 rounded-xl border border-[#E5EAED] bg-white text-xs font-en"
+                  />
+                </div>
+
+                {/* 2. Store Wide Banner */}
+                <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-[#18343B]">
+                      ب. صورة بانر المتجر
+                    </span>
+                    {storeCoverUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setStoreCoverUrl('')}
+                        className="text-[11px] font-bold text-rose-600 flex items-center gap-1 hover:underline"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>حذف البانر</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <label className="w-full h-10 px-3 rounded-xl bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer transition">
+                    <Upload className="w-4 h-4" />
+                    <span>{storeCoverUrl ? 'تغيير بانر المتجر' : 'رفع بانر المتجر'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadStoreCover}
+                      className="hidden"
+                    />
+                  </label>
+
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={storeCoverUrl}
+                    onChange={(e) => setStoreCoverUrl(e.target.value)}
+                    placeholder="أو الصق رابط بانر المتجر..."
+                    className="w-full h-9 px-3 rounded-xl border border-[#E5EAED] bg-white text-xs font-en"
+                  />
+                </div>
               </div>
-              <div className="bg-white p-4 rounded-2xl border border-[#E5EAED] shadow-card">
-                <span className="text-[11px] font-bold text-[#74838A]">
-                  الطلبات الجديدة
-                </span>
-                <p className="text-xl font-extrabold text-[#18343B] mt-1">
-                  {kpiStats.newOrders}
-                </p>
+
+              {/* Store Text Info Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    اسم المتجر
+                  </label>
+                  <input
+                    type="text"
+                    value={storeName}
+                    onChange={(e) => setStoreName(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    نوع النشاط
+                  </label>
+                  <input
+                    type="text"
+                    value={storeActivity}
+                    onChange={(e) => setStoreActivity(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    وصف المتجر المختصر
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={storeDesc}
+                    onChange={(e) => setStoreDesc(e.target.value)}
+                    className="w-full p-3 rounded-xl border border-[#E5EAED] text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    موقع المتجر داخل الجامعة
+                  </label>
+                  <input
+                    type="text"
+                    value={storeLoc}
+                    onChange={(e) => setStoreLoc(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    ساعات العمل
+                  </label>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={storeHours}
+                    onChange={(e) => setStoreHours(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    رقم التواصل
+                  </label>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={storePhone}
+                    onChange={(e) => setStorePhone(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    رسوم التوصيل داخل الكلية (د.ل)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={storeDeliveryFee}
+                    onChange={(e) => setStoreDeliveryFee(Number(e.target.value))}
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
+                  />
+                </div>
               </div>
-              <div className="bg-white p-4 rounded-2xl border border-[#E5EAED] shadow-card">
-                <span className="text-[11px] font-bold text-[#74838A]">
-                  قيد التجهيز والتوصيل
-                </span>
-                <p className="text-xl font-extrabold text-[#36A6A6] mt-1">
-                  {kpiStats.preparingOrders}
-                </p>
-              </div>
-              <div className="bg-white p-4 rounded-2xl border border-[#E5EAED] shadow-card">
-                <span className="text-[11px] font-bold text-[#74838A]">
-                  المنتجات النشطة
-                </span>
-                <p className="text-xl font-extrabold text-[#18343B] mt-1">
-                  {kpiStats.activeProds}
-                </p>
-              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  updateMerchantStoreInfo({
+                    name_ar: storeName,
+                    name_en: storeName,
+                    activity_type_ar: storeActivity,
+                    description_ar: storeDesc,
+                    location_inside_campus: storeLoc,
+                    working_hours: storeHours,
+                    contact_phone: storePhone,
+                    delivery_fee_lyd: storeDeliveryFee,
+                    logo_url: storeLogoUrl,
+                    cover_url: storeCoverUrl,
+                  })
+                }
+                className="w-full sm:w-auto px-8 h-11 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs sm:text-sm font-extrabold shadow-xs transition"
+              >
+                حفظ الصور وبيانات المتجر
+              </button>
             </div>
 
-            <div className="bg-white rounded-3xl p-5 border border-[#E5EAED] shadow-card space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-extrabold text-[#18343B]">
-                  المنتجات الأكثر مبيعاً في المتجر
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('products')}
-                  className="text-xs font-bold text-[#087E83] hover:underline"
-                >
-                  إدارة المنتجات
-                </button>
-              </div>
-
-              {bestSellingMetrics.length === 0 ? (
-                <p className="text-xs text-[#74838A] py-6 text-center">
-                  لا توجد مبيعات مكتملة حتى الآن.
+            {/* Left Column: Live Preview of Store Card before saving */}
+            <div className="lg:col-span-5 space-y-3">
+              <div className="bg-white rounded-3xl p-5 border border-[#E5EAED] shadow-card space-y-3">
+                <h3 className="text-sm font-extrabold text-[#18343B]">
+                  معاينة بطاقة متجرك في الصفحة الرئيسية قبل الحفظ:
+                </h3>
+                <p className="text-xs text-[#74838A]">
+                  هكذا سيظهر متجرك للطلاب في الصفحة الرئيسية:
                 </p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {bestSellingMetrics.map(({ product, unitsSold, ordersCount }) => (
-                    <div
-                      key={product.id}
-                      className="p-3 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] flex items-center justify-between gap-3"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <img
-                          src={product.images[0]}
-                          alt={product.name_ar}
-                          className="w-12 h-12 rounded-xl object-cover"
-                        />
-                        <div className="min-w-0">
-                          <p className="text-xs font-extrabold text-[#18343B] truncate">
-                            {product.name_ar}
-                          </p>
-                          <p className="text-[11px] text-[#74838A]">
-                            {product.price_lyd} د.ل • المخزون: {product.stock_quantity}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-left shrink-0">
-                        <span className="block text-xs font-extrabold text-[#087E83]">
-                          {unitsSold} مباع
-                        </span>
-                        <span className="text-[10px] text-[#74838A]">
-                          {ordersCount} طلبات
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                <StoreCard
+                  previewMode
+                  store={{
+                    ...merchantStore,
+                    name_ar: storeName || merchantStore.name_ar,
+                    name_en: storeName || merchantStore.name_en,
+                    activity_type_ar: storeActivity,
+                    description_ar: storeDesc,
+                    logo_url: storeLogoUrl,
+                    cover_url: storeCoverUrl,
+                  }}
+                />
+              </div>
             </div>
           </div>
         )}
 
+        {/* TAB: PRODUCTS & SERVICES */}
+        {activeTab === 'products' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-3xl p-4 border border-[#E5EAED] shadow-card flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="text"
+                  value={newInternalCatName}
+                  onChange={(e) => setNewInternalCatName(e.target.value)}
+                  placeholder="اسم قسم داخلي جديد بالمتجر..."
+                  className="h-9 px-3 rounded-xl border border-[#E5EAED] text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!newInternalCatName.trim()) return;
+                    addMerchantStoreCategory(newInternalCatName);
+                    setNewInternalCatName('');
+                  }}
+                  className="h-9 px-3 rounded-xl bg-[#EAF3F4] text-[#087E83] text-xs font-bold"
+                >
+                  + إضافة قسم داخلي للمتجر
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setEditingProduct({
+                    name_ar: '',
+                    name_en: '',
+                    description_ar: '',
+                    price_lyd: 15,
+                    old_price_lyd: undefined,
+                    stock_quantity: 25,
+                    category_id: merchantStore.category_id,
+                    store_category_id: myInternalCategories[0]?.id,
+                    images: [''],
+                    is_active: true,
+                    is_available_for_sale: true,
+                  })
+                }
+                className="h-10 px-5 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs"
+              >
+                <Plus className="w-4 h-4" />
+                <span>إضافة منتج أو خدمة</span>
+              </button>
+            </div>
+
+            {myProducts.length === 0 ? (
+              <div className="bg-white rounded-3xl p-8 text-center text-xs text-[#74838A] border border-[#E5EAED]">
+                لا توجد منتجات أو خدمات حالياً في متجرك. اضغط على "إضافة منتج أو خدمة" للبدء.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {myProducts.map((prod) => (
+                  <div
+                    key={prod.id}
+                    className="bg-white rounded-2xl p-3.5 border border-[#E5EAED] shadow-card flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img
+                        src={prod.images[0]}
+                        alt={prod.name_ar}
+                        className="w-16 h-16 rounded-xl object-cover shrink-0 bg-[#F8FAFC]"
+                      />
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="text-xs font-extrabold text-[#18343B] truncate">
+                            {prod.name_ar}
+                          </h3>
+                          {!prod.is_active && (
+                            <span className="text-[10px] bg-[#F8FAFC] text-[#74838A] px-2 py-0.5 rounded-full font-bold">
+                              مخفي
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-extrabold text-[#087E83]">
+                          {prod.price_lyd} د.ل
+                        </p>
+                        <p className="text-[11px] font-bold text-[#74838A]">
+                          المخزون المتاح: {prod.stock_quantity}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          saveMerchantProduct({
+                            id: prod.id,
+                            is_active: !prod.is_active,
+                          })
+                        }
+                        className="w-8 h-8 rounded-lg bg-[#F8FAFC] flex items-center justify-center text-[#74838A]"
+                      >
+                        {prod.is_active ? (
+                          <Eye className="w-4 h-4" />
+                        ) : (
+                          <EyeOff className="w-4 h-4" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingProduct(prod)}
+                        className="w-8 h-8 rounded-lg bg-[#EAF3F4] flex items-center justify-center text-[#087E83]"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteMerchantProduct(prod.id)}
+                        className="w-8 h-8 rounded-lg bg-[#F8FAFC] flex items-center justify-center text-[#74838A]"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB: ORDERS */}
         {activeTab === 'orders' && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
@@ -481,11 +795,9 @@ export const MerchantDashboardPage: React.FC = () => {
                                 alt={item.product_name_snapshot}
                                 className="w-10 h-10 rounded-lg object-cover"
                               />
-                              <div>
-                                <p className="font-extrabold text-[#18343B]">
-                                  {item.product_name_snapshot} × {item.quantity}
-                                </p>
-                              </div>
+                              <p className="font-extrabold text-[#18343B]">
+                                {item.product_name_snapshot} × {item.quantity}
+                              </p>
                             </div>
                             <span className="font-extrabold text-[#087E83]">
                               {item.line_total_lyd} د.ل
@@ -643,251 +955,50 @@ export const MerchantDashboardPage: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'products' && (
-          <div className="space-y-4">
-            <div className="bg-white rounded-3xl p-4 border border-[#E5EAED] shadow-card flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                <input
-                  type="text"
-                  value={newInternalCatName}
-                  onChange={(e) => setNewInternalCatName(e.target.value)}
-                  placeholder="اسم تصنيف داخلي جديد..."
-                  className="h-9 px-3 rounded-xl border border-[#E5EAED] text-xs"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!newInternalCatName.trim()) return;
-                    addMerchantStoreCategory(newInternalCatName);
-                    setNewInternalCatName('');
-                  }}
-                  className="h-9 px-3 rounded-xl bg-[#EAF3F4] text-[#087E83] text-xs font-bold"
-                >
-                  + إضافة تصنيف للمتجر
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setEditingProduct({
-                    name_ar: '',
-                    name_en: '',
-                    description_ar: '',
-                    price_lyd: 15,
-                    old_price_lyd: undefined,
-                    stock_quantity: 25,
-                    category_id: merchantStore.category_id,
-                    store_category_id: myInternalCategories[0]?.id,
-                    images: [
-                      'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=600&q=80',
-                    ],
-                    is_active: true,
-                    is_available_for_sale: true,
-                  })
-                }
-                className="h-10 px-5 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs"
-              >
-                <Plus className="w-4 h-4" />
-                <span>إضافة منتج أو خدمة</span>
-              </button>
+        {/* TAB: OVERVIEW */}
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-white p-4 rounded-2xl border border-[#E5EAED] shadow-card">
+              <span className="text-[11px] font-bold text-[#74838A]">
+                إجمالي المبيعات المكتملة
+              </span>
+              <p className="text-xl font-extrabold text-[#087E83] mt-1">
+                {kpiStats.totalRevenue} د.ل
+              </p>
             </div>
-
-            {myProducts.length === 0 ? (
-              <div className="bg-white rounded-3xl p-8 text-center text-xs text-[#74838A] border border-[#E5EAED]">
-                لا توجد منتجات حالياً في متجرك. اضغط على "إضافة منتج أو خدمة" للبدء.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {myProducts.map((prod) => (
-                  <div
-                    key={prod.id}
-                    className="bg-white rounded-2xl p-3.5 border border-[#E5EAED] shadow-card flex items-center justify-between gap-3"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <img
-                        src={prod.images[0]}
-                        alt={prod.name_ar}
-                        className="w-16 h-16 rounded-xl object-cover shrink-0 bg-[#F8FAFC]"
-                      />
-                      <div className="min-w-0 space-y-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <h3 className="text-xs font-extrabold text-[#18343B] truncate">
-                            {prod.name_ar}
-                          </h3>
-                          {!prod.is_active && (
-                            <span className="text-[10px] bg-[#F8FAFC] text-[#74838A] px-2 py-0.5 rounded-full font-bold">
-                              مخفي
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs font-extrabold text-[#087E83]">
-                          {prod.price_lyd} د.ل{' '}
-                          {prod.old_price_lyd && (
-                            <span className="text-[10px] text-[#74838A] line-through">
-                              {prod.old_price_lyd} د.ل
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-[11px] font-bold text-[#74838A]">
-                          المخزون المتاح: {prod.stock_quantity}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          saveMerchantProduct({
-                            id: prod.id,
-                            is_active: !prod.is_active,
-                          })
-                        }
-                        className="w-8 h-8 rounded-lg bg-[#F8FAFC] flex items-center justify-center text-[#74838A]"
-                      >
-                        {prod.is_active ? (
-                          <Eye className="w-4 h-4" />
-                        ) : (
-                          <EyeOff className="w-4 h-4" />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingProduct(prod)}
-                        className="w-8 h-8 rounded-lg bg-[#EAF3F4] flex items-center justify-center text-[#087E83]"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteMerchantProduct(prod.id)}
-                        className="w-8 h-8 rounded-lg bg-[#F8FAFC] flex items-center justify-center text-[#74838A]"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="bg-white p-4 rounded-2xl border border-[#E5EAED] shadow-card">
+              <span className="text-[11px] font-bold text-[#74838A]">
+                الطلبات الجديدة
+              </span>
+              <p className="text-xl font-extrabold text-[#18343B] mt-1">
+                {kpiStats.newOrders}
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-2xl border border-[#E5EAED] shadow-card">
+              <span className="text-[11px] font-bold text-[#74838A]">
+                قيد التجهيز والتوصيل
+              </span>
+              <p className="text-xl font-extrabold text-[#36A6A6] mt-1">
+                {kpiStats.preparingOrders}
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-2xl border border-[#E5EAED] shadow-card">
+              <span className="text-[11px] font-bold text-[#74838A]">
+                المنتجات النشطة
+              </span>
+              <p className="text-xl font-extrabold text-[#18343B] mt-1">
+                {kpiStats.activeProds}
+              </p>
+            </div>
           </div>
         )}
 
-        {activeTab === 'settings' && (
-          <div className="bg-white rounded-3xl p-5 border border-[#E5EAED] shadow-card max-w-2xl space-y-4">
-            <h2 className="text-sm font-extrabold text-[#18343B] border-b border-[#E5EAED] pb-2.5">
-              إدارة معلومات وإعدادات المتجر
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-[#74838A] mb-1">
-                  اسم المتجر
-                </label>
-                <input
-                  type="text"
-                  value={storeNameEn}
-                  onChange={(e) => setStoreNameEn(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-[#74838A] mb-1">
-                  نوع النشاط
-                </label>
-                <input
-                  type="text"
-                  value={storeActivity}
-                  onChange={(e) => setStoreActivity(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-[#74838A] mb-1">
-                  وصف المتجر
-                </label>
-                <textarea
-                  rows={2}
-                  value={storeDesc}
-                  onChange={(e) => setStoreDesc(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-[#E5EAED] text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-[#74838A] mb-1">
-                  الموقع داخل الكلية
-                </label>
-                <input
-                  type="text"
-                  value={storeLoc}
-                  onChange={(e) => setStoreLoc(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-[#74838A] mb-1">
-                  ساعات العمل الرسمية
-                </label>
-                <input
-                  type="text"
-                  dir="ltr"
-                  value={storeHours}
-                  onChange={(e) => setStoreHours(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-[#74838A] mb-1">
-                  رقم التواصل
-                </label>
-                <input
-                  type="text"
-                  dir="ltr"
-                  value={storePhone}
-                  onChange={(e) => setStorePhone(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-[#74838A] mb-1">
-                  رسوم التوصيل داخل الكلية (د.ل)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={storeDeliveryFee}
-                  onChange={(e) => setStoreDeliveryFee(Number(e.target.value))}
-                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
-                />
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                updateMerchantStoreInfo({
-                  name_en: storeNameEn,
-                  name_ar: storeNameEn,
-                  activity_type_ar: storeActivity,
-                  description_ar: storeDesc,
-                  location_inside_campus: storeLoc,
-                  working_hours: storeHours,
-                  contact_phone: storePhone,
-                  delivery_fee_lyd: storeDeliveryFee,
-                })
-              }
-              className="px-6 h-10 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold"
-            >
-              حفظ تعديلات المتجر
-            </button>
-          </div>
-        )}
-
+        {/* TAB: REPORTS */}
         {activeTab === 'reports' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white rounded-3xl p-4 border border-[#E5EAED] shadow-card space-y-3">
               <h3 className="text-sm font-extrabold text-[#18343B]">
-                المنتجات الأكثر مبيعاً
+                المنتجات الأكثر مبيعاً في المتجر
               </h3>
               {bestSellingMetrics.length === 0 ? (
                 <p className="text-xs text-[#74838A]">لا توجد بيانات مبيعات بعد.</p>
@@ -936,6 +1047,7 @@ export const MerchantDashboardPage: React.FC = () => {
         )}
       </main>
 
+      {/* ADD / EDIT PRODUCT MODAL */}
       {editingProduct && (
         <div className="fixed inset-0 z-50 bg-[#18343B]/50 backdrop-blur-xs flex items-center justify-center p-4">
           <form
@@ -949,7 +1061,7 @@ export const MerchantDashboardPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold text-[#18343B] mb-1">
-                  اسم المنتج / الخدمة
+                  اسم المنتج / الخدمة *
                 </label>
                 <input
                   type="text"
@@ -963,7 +1075,7 @@ export const MerchantDashboardPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-xs font-bold text-[#18343B] mb-1">
-                  التصنيف الداخلي بالمتجر
+                  القسم الداخلي بالمتجر
                 </label>
                 <select
                   value={editingProduct.store_category_id || ''}
@@ -975,7 +1087,7 @@ export const MerchantDashboardPage: React.FC = () => {
                   }
                   className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs bg-white"
                 >
-                  <option value="">بدون تصنيف فرعي</option>
+                  <option value="">بدون قسم فرعي</option>
                   {myInternalCategories.map((sc) => (
                     <option key={sc.id} value={sc.id}>
                       {sc.name_ar}
@@ -985,7 +1097,7 @@ export const MerchantDashboardPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-xs font-bold text-[#18343B] mb-1">
-                  السعر الحالي (د.ل)
+                  السعر (د.ل) *
                 </label>
                 <input
                   type="number"
@@ -1003,27 +1115,7 @@ export const MerchantDashboardPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-xs font-bold text-[#18343B] mb-1">
-                  السعر قبل الخصم (اختياري للعروض الخاصة)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={editingProduct.old_price_lyd || ''}
-                  onChange={(e) =>
-                    setEditingProduct({
-                      ...editingProduct,
-                      old_price_lyd: e.target.value
-                        ? Number(e.target.value)
-                        : undefined,
-                    })
-                  }
-                  placeholder="اتركه فارغاً إن لم يوجد خصم"
-                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-[#18343B] mb-1">
-                  الكمية المتوفرة
+                  الكمية المتوفرة *
                 </label>
                 <input
                   type="number"
@@ -1039,49 +1131,39 @@ export const MerchantDashboardPage: React.FC = () => {
                   className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-bold text-[#18343B] mb-1">
-                  القسم في المنصة
+              <div className="sm:col-span-2 space-y-2">
+                <label className="block text-xs font-bold text-[#18343B]">
+                  صورة المنتج / الخدمة
                 </label>
-                <select
-                  value={editingProduct.category_id || 'cat-services'}
-                  onChange={(e) =>
-                    setEditingProduct({
-                      ...editingProduct,
-                      category_id: e.target.value,
-                    })
-                  }
-                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs bg-white"
-                >
-                  {categories
-                    .filter((c) => c.id !== 'cat-all')
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name_ar}
-                      </option>
-                    ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  <label className="h-9 px-4 rounded-xl bg-[#087E83] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>رفع صورة من الجهاز</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadProductImage}
+                      className="hidden"
+                    />
+                  </label>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={editingProduct.images?.[0] || ''}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        images: [e.target.value],
+                      })
+                    }
+                    placeholder="أو الصق رابط الصورة..."
+                    className="flex-1 h-9 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
+                  />
+                </div>
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-[#18343B] mb-1">
-                  رابط الصورة
-                </label>
-                <input
-                  type="url"
-                  dir="ltr"
-                  value={editingProduct.images?.[0] || ''}
-                  onChange={(e) =>
-                    setEditingProduct({
-                      ...editingProduct,
-                      images: [e.target.value],
-                    })
-                  }
-                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-[#18343B] mb-1">
-                  الوصف
+                  وصف المنتج / الخدمة *
                 </label>
                 <textarea
                   rows={2}

@@ -6,7 +6,6 @@ import {
   Users,
   Package,
   ShoppingBag,
-  LayoutGrid,
   Megaphone,
   BarChart3,
   DollarSign,
@@ -17,19 +16,25 @@ import {
   ArrowRight,
   KeyRound,
   Copy,
+  Edit3,
+  Upload,
+  CheckCircle2,
+  XCircle,
+  X,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
 import { STATUS_META } from './OrdersPage';
-import { OrderStatus } from '../types/database';
+import { OrderStatus, Store } from '../types/database';
+import { StoreCard } from '../components/StoreCard';
+import { compressImageFile } from '../utils/imageUpload';
 
 type AdminTab =
-  | 'analytics'
   | 'stores'
   | 'products'
-  | 'orders'
-  | 'users'
-  | 'categories'
   | 'banners'
+  | 'orders'
+  | 'analytics'
+  | 'users'
   | 'finance';
 
 export const AdminDashboardPage: React.FC = () => {
@@ -53,11 +58,10 @@ export const AdminDashboardPage: React.FC = () => {
     adminCreateStoreInvitation,
     adminCreateOrUpdateStore,
     adminChangeStoreStatus,
+    adminDeleteStore,
     adminToggleProductVisibility,
     saveMerchantProduct,
     deleteMerchantProduct,
-    adminSaveCategory,
-    adminDeleteCategory,
     adminSaveBanner,
     adminDeleteBanner,
     adminToggleUserStatus,
@@ -71,33 +75,25 @@ export const AdminDashboardPage: React.FC = () => {
   // Invitation Form State
   const [invEmail, setInvEmail] = useState('');
   const [invStoreName, setInvStoreName] = useState('');
-  const [invCatId, setInvCatId] = useState('cat-services');
+  const [invCatId] = useState('cat-services');
 
-  // Store Form State
-  const [newStoreNameEn, setNewStoreNameEn] = useState('');
-  const [newStoreActivity, setNewStoreActivity] = useState('');
-  const [newStoreCat, setNewStoreCat] = useState('cat-services');
+  // Add / Edit Store Form State (with Thumbnail + Banner Upload & Preview)
+  const [editingStore, setEditingStore] = useState<
+    (Partial<Store> & { id?: string }) | null
+  >(null);
 
   // Direct Add Product / Service State
   const [newProdName, setNewProdName] = useState('');
   const [newProdPrice, setNewProdPrice] = useState('15');
-  const [newProdOldPrice, setNewProdOldPrice] = useState('');
   const [newProdStoreId, setNewProdStoreId] = useState('');
-  const [newProdCatId, setNewProdCatId] = useState('cat-services');
-  const [newProdImage, setNewProdImage] = useState(
-    'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=600&q=80'
-  );
+  const [newProdImage, setNewProdImage] = useState('');
   const [newProdDesc, setNewProdDesc] = useState('');
-
-  // Category Form State
-  const [catNameAr, setCatNameAr] = useState('');
-  const [catIcon, setCatIcon] = useState('BookOpen');
 
   // Banner Form State
   const [banTitle, setBanTitle] = useState('');
   const [banSubtitle, setBanSubtitle] = useState('');
-  const [banCta, setBanCta] = useState('تسوق الآن');
-  const [banImg, setBanImg] = useState('/campus-market/banner-campus-hero.png');
+  const [banCta, setBanCta] = useState('اكتشف المتاجر');
+  const [banImg, setBanImg] = useState('/campus-market/banner-campus-art.jpg');
 
   // Filters
   const [prodSearch, setProdSearch] = useState('');
@@ -107,6 +103,11 @@ export const AdminDashboardPage: React.FC = () => {
 
   const isAdmin =
     currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
+
+  const pendingStoresCount = useMemo(
+    () => stores.filter((s) => s.status === 'pending').length,
+    [stores]
+  );
 
   const platformStats = useMemo(() => {
     const activeStoresCount = stores.filter((s) => s.status === 'active').length;
@@ -157,6 +158,50 @@ export const AdminDashboardPage: React.FC = () => {
     [getPlatformMostOrderedProducts]
   );
 
+  const handleStoreLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingStore) return;
+    try {
+      const dataUrl = await compressImageFile(file, 400, 400, 0.86);
+      setEditingStore({ ...editingStore, logo_url: dataUrl });
+    } catch {
+      showToast('تعذر قراءة الصورة المصغرة', 'error');
+    }
+  };
+
+  const handleStoreCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingStore) return;
+    try {
+      const dataUrl = await compressImageFile(file, 1200, 600, 0.86);
+      setEditingStore({ ...editingStore, cover_url: dataUrl });
+    } catch {
+      showToast('تعذر قراءة صورة البانر', 'error');
+    }
+  };
+
+  const handleBannerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await compressImageFile(file, 1200, 500, 0.86);
+      setBanImg(dataUrl);
+    } catch {
+      showToast('تعذر قراءة صورة البانر', 'error');
+    }
+  };
+
+  const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await compressImageFile(file, 800, 800, 0.85);
+      setNewProdImage(dataUrl);
+    } catch {
+      showToast('تعذر قراءة صورة المنتج', 'error');
+    }
+  };
+
   if (!isAdmin) {
     return (
       <div className="py-10 px-4">
@@ -168,7 +213,7 @@ export const AdminDashboardPage: React.FC = () => {
             لوحة تحكم إدارة المنصة — CampusMarket
           </h1>
           <p className="text-xs text-[#74838A]">
-            اضغط بالأسفل للدخول إلى لوحة الإدارة المركزية وإدارة المتاجر والمنتجات والخدمات والأقسام والبانرات:
+            اضغط بالأسفل للدخول إلى لوحة الإدارة المركزية وإدارة المتاجر وصورها والمنتجات والبانر الرئيسي:
           </p>
           <button
             type="button"
@@ -206,34 +251,62 @@ export const AdminDashboardPage: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-extrabold bg-[#087E83] px-2.5 py-0.5 rounded-full">
-                  لوحة التحكم
+                  لوحة الإدارة
                 </span>
                 <h1 className="text-sm sm:text-base font-extrabold">
                   إدارة منصة CampusMarket
                 </h1>
               </div>
               <p className="text-[11px] text-[#B9DDE0] mt-0.5">
-                إدارة المتاجر • المنتجات والخدمات • الأقسام • البانرات والعروض • الطلبات
+                إدارة المتاجر وطلبات الاشتراك • الصور المصغرة والبانرات • المنتجات والخدمات • البانر الرئيسي
               </p>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              setEditingStore({
+                name_ar: '',
+                name_en: '',
+                activity_type_ar: '',
+                description_ar: '',
+                location_inside_campus: 'داخل الكلية',
+                working_hours: '08:00 - 17:00',
+                contact_phone: '',
+                logo_url: '',
+                cover_url: '',
+                status: 'active',
+                is_open: true,
+              })
+            }
+            className="px-4 py-2 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition"
+          >
+            <Plus className="w-4 h-4" />
+            <span>إضافة متجر جديد</span>
+          </button>
         </div>
 
         {/* Admin Navigation Tabs */}
         <div className="mt-4 pt-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar border-t border-white/10">
           {(
             [
-              { id: 'stores', label: `المتاجر (${stores.length})`, icon: StoreIcon },
+              {
+                id: 'stores',
+                label: `المتاجر (${stores.length})${
+                  pendingStoresCount > 0 ? ` • ${pendingStoresCount} طلب جديد` : ''
+                }`,
+                icon: StoreIcon,
+              },
               {
                 id: 'products',
-                label: `المنتجات والخدمات والعروض (${products.length})`,
+                label: `المنتجات والخدمات (${products.length})`,
                 icon: Package,
               },
-              { id: 'categories', label: 'الأقسام', icon: LayoutGrid },
-              { id: 'banners', label: 'البانرات والإعلانات', icon: Megaphone },
+              { id: 'banners', label: 'البانر الرئيسي', icon: Megaphone },
               { id: 'orders', label: `الطلبات (${orders.length})`, icon: ShoppingBag },
+              { id: 'users', label: `المستخدمون والتقييمات`, icon: Users },
               { id: 'analytics', label: 'الإحصائيات', icon: BarChart3 },
-              { id: 'users', label: `المستخدمون (${users.length})`, icon: Users },
               { id: 'finance', label: 'الإعدادات المالية', icon: DollarSign },
             ] as const
           ).map((tab) => {
@@ -259,72 +332,18 @@ export const AdminDashboardPage: React.FC = () => {
       </header>
 
       <main className="space-y-5">
-        {/* TAB: STORES & MERCHANT INVITATIONS */}
+        {/* TAB 1: STORES, SUBSCRIPTION REQUESTS & INVITATIONS */}
         {activeTab === 'stores' && (
           <div className="space-y-5">
-            {/* Direct Add Store by Admin */}
-            <section className="bg-white rounded-3xl p-5 border border-[#E5EAED] shadow-card space-y-3">
-              <h2 className="text-sm font-extrabold text-[#18343B]">
-                إضافة متجر جديد مباشرة إلى المنصة
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
-                <input
-                  type="text"
-                  value={newStoreNameEn}
-                  onChange={(e) => setNewStoreNameEn(e.target.value)}
-                  placeholder="اسم المتجر..."
-                  className="h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
-                />
-                <input
-                  type="text"
-                  value={newStoreActivity}
-                  onChange={(e) => setNewStoreActivity(e.target.value)}
-                  placeholder="نوع النشاط..."
-                  className="h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
-                />
-                <select
-                  value={newStoreCat}
-                  onChange={(e) => setNewStoreCat(e.target.value)}
-                  className="h-10 px-3 rounded-xl border border-[#E5EAED] text-xs bg-white"
-                >
-                  {categories
-                    .filter((c) => c.id !== 'cat-all')
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name_ar}
-                      </option>
-                    ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!newStoreNameEn || !newStoreActivity) return;
-                    adminCreateOrUpdateStore({
-                      name_en: newStoreNameEn,
-                      name_ar: newStoreNameEn,
-                      activity_type_ar: newStoreActivity,
-                      category_id: newStoreCat,
-                      status: 'active',
-                    });
-                    setNewStoreNameEn('');
-                    setNewStoreActivity('');
-                  }}
-                  className="h-10 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold"
-                >
-                  + إضافة المتجر
-                </button>
-              </div>
-            </section>
-
             {/* Merchant Invitation Generator */}
             <section className="bg-white rounded-3xl p-5 border border-[#E5EAED] shadow-card space-y-3">
               <div className="flex items-center gap-2 text-[#087E83]">
                 <KeyRound className="w-4 h-4" />
                 <h2 className="text-sm font-extrabold">
-                  إنشاء رمز دعوة لصاحب متجر طالب
+                  إصدار رمز دعوة خاص لصاحب متجر جديد
                 </h2>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <input
                   type="text"
                   value={invStoreName}
@@ -339,19 +358,6 @@ export const AdminDashboardPage: React.FC = () => {
                   placeholder="البريد الإلكتروني للتاجر..."
                   className="h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                 />
-                <select
-                  value={invCatId}
-                  onChange={(e) => setInvCatId(e.target.value)}
-                  className="h-10 px-3 rounded-xl border border-[#E5EAED] text-xs bg-white"
-                >
-                  {categories
-                    .filter((c) => c.id !== 'cat-all')
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name_ar}
-                      </option>
-                    ))}
-                </select>
                 <button
                   type="button"
                   onClick={() => {
@@ -407,61 +413,86 @@ export const AdminDashboardPage: React.FC = () => {
               )}
             </section>
 
-            {/* All Stores List */}
+            {/* All Stores List (Pending & Active & Suspended) */}
             {stores.length === 0 ? (
-              <div className="bg-white rounded-3xl p-8 text-center text-xs text-[#74838A] border border-[#E5EAED]">
-                لا توجد متاجر مضافة حالياً. أضف أول متجر من النموذج أعلاه ليظهر فوراً في المنصة.
+              <div className="bg-white rounded-3xl p-10 text-center space-y-3 border border-[#E5EAED] shadow-card">
+                <StoreIcon className="w-10 h-10 text-[#087E83] mx-auto stroke-[1.7]" />
+                <p className="text-sm font-extrabold text-[#18343B]">
+                  لا توجد متاجر مسجلة حالياً
+                </p>
+                <p className="text-xs text-[#74838A]">
+                  اضغط على زر "إضافة متجر جديد" في الأعلى لإضافة متجر مع صورته المصغرة وبانره الخاص.
+                </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {stores.map((st) => (
                   <div
                     key={st.id}
-                    className="bg-white rounded-2xl p-4 border border-[#E5EAED] shadow-card flex items-center justify-between gap-3"
+                    className="bg-white rounded-3xl p-4 border border-[#E5EAED] shadow-card space-y-3"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <img
-                        src={st.logo_url}
-                        alt={st.name_en}
-                        className="w-14 h-14 rounded-2xl object-cover shrink-0 bg-[#F8FAFC]"
-                      />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-extrabold text-[#18343B]">
-                            {st.name_ar || st.name_en}
-                          </h3>
-                          <span
-                            className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                              st.status === 'active'
-                                ? 'bg-[#EAF3F4] text-[#087E83]'
-                                : 'bg-[#F8FAFC] text-[#74838A]'
-                            }`}
-                          >
-                            {st.status === 'active' ? 'معتمد ونشط' : 'موقوف'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-[#74838A]">{st.activity_type_ar}</p>
-                      </div>
-                    </div>
+                    {/* Live Store Card Preview */}
+                    <StoreCard store={st} />
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      {st.status === 'active' ? (
+                    {/* Admin Controls for this Store */}
+                    <div className="pt-2 border-t border-[#E5EAED] flex items-center justify-between flex-wrap gap-2">
+                      <span
+                        className={`text-xs font-extrabold px-3 py-1 rounded-full ${
+                          st.status === 'active'
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : st.status === 'pending'
+                            ? 'bg-[#FDF8E7] text-[#18343B] border border-[#F3C95B]'
+                            : 'bg-rose-50 text-rose-600'
+                        }`}
+                      >
+                        {st.status === 'active'
+                          ? 'معتمد ويظهر في الرئيسية'
+                          : st.status === 'pending'
+                          ? 'طلب اشتراك جديد (بانتظار الموافقة)'
+                          : 'موقوف / مرفوض'}
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        {st.status !== 'active' && (
+                          <button
+                            type="button"
+                            onClick={() => adminChangeStoreStatus(st.id, 'active')}
+                            className="px-3.5 py-1.5 rounded-full bg-[#087E83] text-white text-xs font-extrabold flex items-center gap-1"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>قبول واعتماد</span>
+                          </button>
+                        )}
+
+                        {st.status === 'active' && (
+                          <button
+                            type="button"
+                            onClick={() => adminChangeStoreStatus(st.id, 'suspended')}
+                            className="px-3 py-1.5 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-[#74838A] text-xs font-bold flex items-center gap-1"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            <span>إيقاف</span>
+                          </button>
+                        )}
+
                         <button
                           type="button"
-                          onClick={() => adminChangeStoreStatus(st.id, 'suspended')}
-                          className="px-3 py-1.5 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-[#74838A] text-xs font-bold"
+                          onClick={() => setEditingStore(st)}
+                          className="p-2 rounded-full bg-[#EAF3F4] text-[#087E83]"
+                          title="تعديل بيانات وصور المتجر"
                         >
-                          إيقاف مؤقت
+                          <Edit3 className="w-4 h-4" />
                         </button>
-                      ) : (
+
                         <button
                           type="button"
-                          onClick={() => adminChangeStoreStatus(st.id, 'active')}
-                          className="px-3 py-1.5 rounded-full bg-[#087E83] text-white text-xs font-bold"
+                          onClick={() => adminDeleteStore(st.id)}
+                          className="p-2 rounded-full bg-rose-50 text-rose-600"
+                          title="حذف المتجر نهائياً"
                         >
-                          تفعيل
+                          <Trash2 className="w-4 h-4" />
                         </button>
-                      )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -470,13 +501,12 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         )}
 
-        {/* TAB: PRODUCTS, SERVICES & OFFERS */}
+        {/* TAB 2: PRODUCTS & SERVICES */}
         {activeTab === 'products' && (
           <div className="space-y-4">
-            {/* Direct Add Product or Service from Admin */}
             <section className="bg-white rounded-3xl p-5 border border-[#E5EAED] shadow-card space-y-3">
               <h2 className="text-sm font-extrabold text-[#18343B]">
-                إضافة منتج أو خدمة أو عرض خاص مباشرة
+                إضافة منتج أو خدمة إلى متجر
               </h2>
               {stores.length === 0 ? (
                 <p className="text-xs text-[#74838A]">
@@ -502,19 +532,6 @@ export const AdminDashboardPage: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                  <select
-                    value={newProdCatId}
-                    onChange={(e) => setNewProdCatId(e.target.value)}
-                    className="h-10 px-3 rounded-xl border border-[#E5EAED] text-xs bg-white"
-                  >
-                    {categories
-                      .filter((c) => c.id !== 'cat-all')
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>
-                          القسم: {c.name_ar}
-                        </option>
-                      ))}
-                  </select>
                   <input
                     type="number"
                     min={1}
@@ -523,28 +540,32 @@ export const AdminDashboardPage: React.FC = () => {
                     placeholder="السعر (د.ل)..."
                     className="h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                   />
-                  <input
-                    type="number"
-                    min={0}
-                    value={newProdOldPrice}
-                    onChange={(e) => setNewProdOldPrice(e.target.value)}
-                    placeholder="السعر قبل الخصم (اختياري للعروض)..."
-                    className="h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
-                  />
-                  <input
-                    type="url"
-                    dir="ltr"
-                    value={newProdImage}
-                    onChange={(e) => setNewProdImage(e.target.value)}
-                    placeholder="رابط الصورة..."
-                    className="h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
-                  />
+                  <div className="flex items-center gap-2">
+                    <label className="h-10 px-3 rounded-xl bg-[#EAF3F4] text-[#087E83] text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shrink-0">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>رفع صورة</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleProductImageUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    <input
+                      type="text"
+                      dir="ltr"
+                      value={newProdImage}
+                      onChange={(e) => setNewProdImage(e.target.value)}
+                      placeholder="أو رابط الصورة..."
+                      className="flex-1 h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
+                    />
+                  </div>
                   <input
                     type="text"
                     value={newProdDesc}
                     onChange={(e) => setNewProdDesc(e.target.value)}
                     placeholder="وصف مختصر للمنتج أو الخدمة..."
-                    className="sm:col-span-2 h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
+                    className="h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                   />
                   <button
                     type="button"
@@ -556,25 +577,22 @@ export const AdminDashboardPage: React.FC = () => {
                         name_ar: newProdName.trim(),
                         name_en: newProdName.trim(),
                         description_ar:
-                          newProdDesc.trim() || 'منتج / خدمة متوفرة داخل الكلية.',
+                          newProdDesc.trim() || 'متوفر داخل المتجر.',
                         price_lyd: Number(newProdPrice) || 10,
-                        old_price_lyd: newProdOldPrice
-                          ? Number(newProdOldPrice)
-                          : undefined,
-                        category_id: newProdCatId,
-                        images: [newProdImage],
+                        category_id: categories[1]?.id || 'cat-services',
+                        images: newProdImage ? [newProdImage] : [],
                         stock_quantity: 50,
                         is_active: true,
                         is_available_for_sale: true,
                       });
                       setNewProdName('');
                       setNewProdDesc('');
-                      setNewProdOldPrice('');
+                      setNewProdImage('');
                     }}
                     className="h-10 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold flex items-center justify-center gap-1.5"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>إضافة العنصر للمنصة</span>
+                    <span>إضافة للمتجر</span>
                   </button>
                 </div>
               )}
@@ -680,111 +698,55 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         )}
 
-        {/* TAB: CATEGORIES MANAGEMENT */}
-        {activeTab === 'categories' && (
-          <div className="space-y-4">
-            <div className="bg-white rounded-3xl p-4 border border-[#E5EAED] shadow-card flex items-center gap-2.5 flex-wrap">
-              <input
-                type="text"
-                value={catNameAr}
-                onChange={(e) => setCatNameAr(e.target.value)}
-                placeholder="اسم القسم الجديد..."
-                className="flex-1 min-w-[200px] h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
-              />
-              <select
-                value={catIcon}
-                onChange={(e) => setCatIcon(e.target.value)}
-                className="h-10 px-3 rounded-xl border border-[#E5EAED] text-xs bg-white"
-              >
-                <option value="BookOpen">مستلزمات دراسية</option>
-                <option value="Settings">خدمات</option>
-                <option value="Gamepad2">إلكترونيات</option>
-                <option value="Shirt">ملابس</option>
-                <option value="Utensils">مأكولات ومشروبات</option>
-              </select>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!catNameAr.trim()) return;
-                  adminSaveCategory({
-                    name_ar: catNameAr.trim(),
-                    name_en: catNameAr.trim(),
-                    icon_name: catIcon,
-                  });
-                  setCatNameAr('');
-                }}
-                className="h-10 px-5 rounded-full bg-[#087E83] text-white text-xs font-extrabold"
-              >
-                + إضافة قسم
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {categories.map((cat) => (
-                <div
-                  key={cat.id}
-                  className="bg-white rounded-2xl p-3.5 border border-[#E5EAED] shadow-card flex items-center justify-between"
-                >
-                  <div>
-                    <p className="text-xs font-extrabold text-[#18343B]">
-                      {cat.name_ar}
-                    </p>
-                    <p className="text-[10px] text-[#74838A]">
-                      الترتيب: {cat.sort_order}
-                    </p>
-                  </div>
-                  {cat.id !== 'cat-all' && (
-                    <button
-                      type="button"
-                      onClick={() => adminDeleteCategory(cat.id)}
-                      className="p-2 rounded-lg bg-[#F8FAFC] text-[#74838A] hover:text-[#18343B]"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* TAB: BANNERS MANAGEMENT */}
+        {/* TAB 3: MAIN HERO BANNER MANAGEMENT */}
         {activeTab === 'banners' && (
           <div className="space-y-4">
             <div className="bg-white rounded-3xl p-5 border border-[#E5EAED] shadow-card space-y-3">
               <h2 className="text-sm font-extrabold text-[#18343B]">
-                إضافة بانر إعلاني جديد للصفحة الرئيسية
+                إضافة أو تحديث البانر الرئيسي للصفحة الرئيسية
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <input
                   type="text"
                   value={banTitle}
                   onChange={(e) => setBanTitle(e.target.value)}
-                  placeholder="العنوان الرئيسي للبانر..."
+                  placeholder="العبارة التسويقية (مثال: كل احتياجاتك الجامعية في مكان واحد)..."
                   className="h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                 />
                 <input
                   type="text"
                   value={banSubtitle}
                   onChange={(e) => setBanSubtitle(e.target.value)}
-                  placeholder="الوصف المختصر..."
+                  placeholder="الوصف المختصر (مثال: منتجات • خدمات • مستلزمات دراسية)..."
                   className="h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                 />
                 <input
                   type="text"
                   value={banCta}
                   onChange={(e) => setBanCta(e.target.value)}
-                  placeholder="نص الزر (تسوق الآن)..."
+                  placeholder="نص الزر (اكتشف المتاجر)..."
                   className="h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                 />
-                <input
-                  type="text"
-                  dir="ltr"
-                  value={banImg}
-                  onChange={(e) => setBanImg(e.target.value)}
-                  placeholder="رابط الصورة..."
-                  className="h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
-                />
+                <div className="flex items-center gap-2">
+                  <label className="h-10 px-3 rounded-xl bg-[#EAF3F4] text-[#087E83] text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shrink-0">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>رفع صورة بانر</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleBannerImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={banImg}
+                    onChange={(e) => setBanImg(e.target.value)}
+                    placeholder="أو رابط الصورة..."
+                    className="flex-1 h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
+                  />
+                </div>
               </div>
               <button
                 type="button"
@@ -801,7 +763,7 @@ export const AdminDashboardPage: React.FC = () => {
                 }}
                 className="h-10 px-5 rounded-full bg-[#087E83] text-white text-xs font-extrabold"
               >
-                + نشر البانر
+                + نشر البانر في الصفحة الرئيسية
               </button>
             </div>
 
@@ -815,7 +777,7 @@ export const AdminDashboardPage: React.FC = () => {
                     <img
                       src={b.image_url}
                       alt={b.title_ar}
-                      className="w-16 h-12 rounded-xl object-cover bg-[#087E83]"
+                      className="w-20 h-12 rounded-xl object-cover bg-[#D4F1F4]"
                     />
                     <div>
                       <h3 className="text-xs font-extrabold text-[#18343B]">
@@ -852,7 +814,7 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         )}
 
-        {/* TAB: ORDERS */}
+        {/* TAB 4: ORDERS */}
         {activeTab === 'orders' && (
           <div className="space-y-4">
             <div className="bg-white rounded-3xl p-4 border border-[#E5EAED] shadow-card flex items-center gap-3 flex-wrap">
@@ -942,7 +904,85 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         )}
 
-        {/* TAB: ANALYTICS */}
+        {/* TAB 5: USERS & REVIEWS MODERATION */}
+        {activeTab === 'users' && (
+          <div className="space-y-5">
+            <div className="bg-white rounded-3xl p-4 border border-[#E5EAED] shadow-card space-y-3">
+              <h2 className="text-sm font-extrabold text-[#18343B]">
+                مراجعة التقييمات ({reviews.length})
+              </h2>
+              {reviews.length === 0 ? (
+                <p className="text-xs text-[#74838A]">
+                  لا توجد تقييمات مسجلة حتى الآن.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {reviews.map((rev) => (
+                    <div
+                      key={rev.id}
+                      className="flex items-center justify-between p-3 rounded-xl bg-[#F8FAFC] text-xs"
+                    >
+                      <div>
+                        <span className="font-extrabold text-[#18343B]">
+                          {rev.user_name_ar} ({rev.rating}★):
+                        </span>{' '}
+                        <span className="text-[#74838A]">{rev.comment}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          adminModerateReview(rev.id, !rev.is_approved)
+                        }
+                        className="px-3 py-1 rounded-lg font-bold bg-white border border-[#E5EAED] text-[#087E83]"
+                      >
+                        {rev.is_approved ? 'إخفاء' : 'اعتماد'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white rounded-3xl p-4 border border-[#E5EAED] shadow-card space-y-3">
+              <h2 className="text-sm font-extrabold text-[#18343B]">
+                إدارة حسابات المستخدمين
+              </h2>
+              <div className="space-y-2">
+                {users.map((u) => (
+                  <div
+                    key={u.id}
+                    className="flex items-center justify-between p-3 rounded-xl bg-[#F8FAFC] border border-[#E5EAED] text-xs flex-wrap gap-2"
+                  >
+                    <div>
+                      <span className="font-extrabold text-[#18343B]">
+                        {u.full_name}
+                      </span>{' '}
+                      <span className="text-[#74838A]">({u.email})</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 rounded-lg bg-[#EAF3F4] text-[#087E83] font-extrabold">
+                        {u.role}
+                      </span>
+                      {u.id !== currentUser?.id && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            adminToggleUserStatus(u.id, !u.is_active)
+                          }
+                          className="px-3 py-1 rounded-lg font-bold bg-white border border-[#E5EAED] text-[#18343B]"
+                        >
+                          {u.is_active ? 'إيقاف' : 'تفعيل'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: ANALYTICS */}
         {activeTab === 'analytics' && (
           <div className="space-y-5">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1060,81 +1100,7 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         )}
 
-        {/* TAB: USERS & REVIEWS */}
-        {activeTab === 'users' && (
-          <div className="space-y-5">
-            <div className="bg-white rounded-3xl p-4 border border-[#E5EAED] shadow-card space-y-3">
-              <h2 className="text-sm font-extrabold text-[#18343B]">
-                إدارة حسابات المستخدمين
-              </h2>
-              <div className="space-y-2">
-                {users.map((u) => (
-                  <div
-                    key={u.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-[#F8FAFC] border border-[#E5EAED] text-xs flex-wrap gap-2"
-                  >
-                    <div>
-                      <span className="font-extrabold text-[#18343B]">
-                        {u.full_name}
-                      </span>{' '}
-                      <span className="text-[#74838A]">({u.email})</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-1 rounded-lg bg-[#EAF3F4] text-[#087E83] font-extrabold">
-                        {u.role}
-                      </span>
-                      {u.id !== currentUser?.id && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            adminToggleUserStatus(u.id, !u.is_active)
-                          }
-                          className="px-3 py-1 rounded-lg font-bold bg-white border border-[#E5EAED] text-[#18343B]"
-                        >
-                          {u.is_active ? 'إيقاف' : 'تفعيل'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {reviews.length > 0 && (
-              <div className="bg-white rounded-3xl p-4 border border-[#E5EAED] shadow-card space-y-3">
-                <h2 className="text-sm font-extrabold text-[#18343B]">
-                  مراجعة التقييمات ({reviews.length})
-                </h2>
-                <div className="space-y-2">
-                  {reviews.map((rev) => (
-                    <div
-                      key={rev.id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-[#F8FAFC] text-xs"
-                    >
-                      <div>
-                        <span className="font-extrabold text-[#18343B]">
-                          {rev.user_name_ar} ({rev.rating}★):
-                        </span>{' '}
-                        <span className="text-[#74838A]">{rev.comment}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          adminModerateReview(rev.id, !rev.is_approved)
-                        }
-                        className="px-3 py-1 rounded-lg font-bold bg-white border border-[#E5EAED] text-[#087E83]"
-                      >
-                        {rev.is_approved ? 'إخفاء' : 'اعتماد'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* TAB: FINANCE SETTINGS */}
+        {/* TAB 7: FINANCE SETTINGS */}
         {activeTab === 'finance' && (
           <div className="bg-white rounded-3xl p-5 border border-[#E5EAED] shadow-card max-w-2xl space-y-4">
             <h2 className="text-sm font-extrabold text-[#18343B] border-b border-[#E5EAED] pb-2.5">
@@ -1207,6 +1173,251 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* ADD / EDIT STORE MODAL (With Thumbnail, Wide Banner Upload & Live Preview) */}
+      {editingStore && (
+        <div className="fixed inset-0 z-50 bg-[#18343B]/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-xl rounded-3xl p-6 space-y-4 shadow-xl max-h-[92vh] overflow-y-auto border border-[#E5EAED]">
+            <div className="flex items-center justify-between border-b border-[#E5EAED] pb-3">
+              <h3 className="text-base font-extrabold text-[#18343B]">
+                {editingStore.id ? 'تعديل بيانات وصور المتجر' : 'إضافة متجر جديد إلى المنصة'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingStore(null)}
+                className="w-8 h-8 rounded-full bg-[#F8FAFC] flex items-center justify-center text-[#74838A]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Live Store Card Preview */}
+            <div className="bg-[#F8FAFC] p-3.5 rounded-2xl border border-[#E5EAED] space-y-2">
+              <span className="text-[11px] font-extrabold text-[#087E83] block">
+                معاينة بطاقة المتجر في الصفحة الرئيسية:
+              </span>
+              <StoreCard
+                previewMode
+                store={{
+                  id: editingStore.id || 'preview',
+                  owner_id: editingStore.owner_id || 'user-super-admin',
+                  name_ar: editingStore.name_ar || 'اسم المتجر',
+                  name_en: editingStore.name_en || editingStore.name_ar || 'اسم المتجر',
+                  slug: 'preview',
+                  activity_type_ar: editingStore.activity_type_ar || 'نشاط المتجر',
+                  description_ar: editingStore.description_ar || '',
+                  category_id: 'cat-services',
+                  logo_url: editingStore.logo_url || '',
+                  cover_url: editingStore.cover_url || '',
+                  icon_bg_color: '#087E83',
+                  icon_type: 'sparkles',
+                  location_inside_campus:
+                    editingStore.location_inside_campus || 'داخل الكلية',
+                  working_hours: editingStore.working_hours || '08:00 - 17:00',
+                  is_open: editingStore.is_open ?? true,
+                  supports_pickup: true,
+                  supports_delivery: true,
+                  delivery_fee_lyd: 3,
+                  contact_phone: editingStore.contact_phone || '',
+                  status: 'active',
+                  is_demo: false,
+                  created_at: new Date().toISOString(),
+                }}
+              />
+            </div>
+
+            {/* Thumbnail & Banner Uploads */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-[#18343B]">
+                    صورة المتجر المصغرة
+                  </span>
+                  {editingStore.logo_url && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditingStore({ ...editingStore, logo_url: '' })
+                      }
+                      className="text-[11px] text-rose-600 font-bold"
+                    >
+                      حذف
+                    </button>
+                  )}
+                </div>
+                <label className="w-full h-9 px-3 rounded-xl bg-[#087E83] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>رفع صورة مصغرة</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleStoreLogoUpload}
+                    className="hidden"
+                  />
+                </label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={editingStore.logo_url || ''}
+                  onChange={(e) =>
+                    setEditingStore({ ...editingStore, logo_url: e.target.value })
+                  }
+                  placeholder="أو رابط الصورة المصغرة..."
+                  className="w-full h-8 px-2.5 rounded-lg border border-[#E5EAED] bg-white text-[11px] font-en"
+                />
+              </div>
+
+              <div className="p-3 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-[#18343B]">
+                    صورة بانر المتجر
+                  </span>
+                  {editingStore.cover_url && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditingStore({ ...editingStore, cover_url: '' })
+                      }
+                      className="text-[11px] text-rose-600 font-bold"
+                    >
+                      حذف
+                    </button>
+                  )}
+                </div>
+                <label className="w-full h-9 px-3 rounded-xl bg-[#087E83] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>رفع بانر المتجر</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleStoreCoverUpload}
+                    className="hidden"
+                  />
+                </label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={editingStore.cover_url || ''}
+                  onChange={(e) =>
+                    setEditingStore({ ...editingStore, cover_url: e.target.value })
+                  }
+                  placeholder="أو رابط بانر المتجر..."
+                  className="w-full h-8 px-2.5 rounded-lg border border-[#E5EAED] bg-white text-[11px] font-en"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-[#18343B] mb-1">
+                  اسم المتجر *
+                </label>
+                <input
+                  type="text"
+                  value={editingStore.name_ar || ''}
+                  onChange={(e) =>
+                    setEditingStore({
+                      ...editingStore,
+                      name_ar: e.target.value,
+                      name_en: e.target.value,
+                    })
+                  }
+                  placeholder="اسم المتجر..."
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#18343B] mb-1">
+                  نوع النشاط *
+                </label>
+                <input
+                  type="text"
+                  value={editingStore.activity_type_ar || ''}
+                  onChange={(e) =>
+                    setEditingStore({
+                      ...editingStore,
+                      activity_type_ar: e.target.value,
+                    })
+                  }
+                  placeholder="مثال: مأكولات ومشروبات / مكتبة وقرطاسية"
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-[#18343B] mb-1">
+                  وصف المتجر
+                </label>
+                <input
+                  type="text"
+                  value={editingStore.description_ar || ''}
+                  onChange={(e) =>
+                    setEditingStore({
+                      ...editingStore,
+                      description_ar: e.target.value,
+                    })
+                  }
+                  placeholder="وصف مختصر للمتجر..."
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#18343B] mb-1">
+                  موقع المتجر داخل الجامعة
+                </label>
+                <input
+                  type="text"
+                  value={editingStore.location_inside_campus || ''}
+                  onChange={(e) =>
+                    setEditingStore({
+                      ...editingStore,
+                      location_inside_campus: e.target.value,
+                    })
+                  }
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#18343B] mb-1">
+                  ساعات العمل
+                </label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={editingStore.working_hours || ''}
+                  onChange={(e) =>
+                    setEditingStore({
+                      ...editingStore,
+                      working_hours: e.target.value,
+                    })
+                  }
+                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!editingStore.name_ar?.trim()) return;
+                  adminCreateOrUpdateStore(editingStore);
+                  setEditingStore(null);
+                }}
+                className="flex-1 h-11 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs sm:text-sm font-extrabold"
+              >
+                حفظ بيانات المتجر
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingStore(null)}
+                className="px-6 h-11 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-[#74838A] text-xs font-bold"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

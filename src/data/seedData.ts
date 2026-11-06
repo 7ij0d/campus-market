@@ -15,52 +15,44 @@ import {
   AuditLog,
 } from '../types/database';
 
+export const INITIAL_PLATFORM_SETTINGS: PlatformSettings = {
+  id: '1',
+  platform_name_en: 'CampusMarket',
+  platform_name_ar: 'سوق الكلية الجامعي',
+  currency_code: 'LYD',
+  currency_symbol_ar: 'د.ل',
+  revenue_model: 'hybrid',
+  commission_rate_percent: 5,
+  monthly_subscription_lyd: 50,
+  allow_new_merchant_requests: true,
+  maintenance_mode: false,
+};
+
 export const INITIAL_LOCATIONS: CampusLocation[] = [
   {
     id: 'loc-main',
     name_ar: 'داخل الكلية',
-    campus_name_ar: 'الحرم الجامعي الرئيسي',
     pickup_points: [
-      'الساحة الرئيسية أمام المكتبة',
-      'مدخل كلية الهندسة وتقنية المعلومات',
-      'مدخل كلية الطب البشري والأسنان',
-      'الكافيتريا المركزية',
-      'مبنى المدرجات المركزية',
+      'البوابة الرئيسية للكلية',
+      'الساحة الطلابية المركزية',
+      'مبنى القاعات الدراسية',
+      'مكتبة الكلية',
     ],
-    is_active: true,
+  },
+  {
+    id: 'loc-it',
+    name_ar: 'مبنى تقنية المعلومات',
+    pickup_points: ['مدخل المعامل', 'القاعة الكبرى'],
+  },
+  {
+    id: 'loc-eng',
+    name_ar: 'مبنى الهندسة',
+    pickup_points: ['بهو الهندسة', 'المعمل المركزي'],
   },
   {
     id: 'loc-med',
     name_ar: 'مجمع الكليات الطبية',
-    campus_name_ar: 'الحرم الطبي الجامعي',
-    pickup_points: [
-      'عيادات طب الأسنان التعليمية',
-      'مدخل كلية الصيدلة',
-      'استراحة الطلبة - المبنى B',
-    ],
-    is_active: true,
-  },
-  {
-    id: 'loc-eng',
-    name_ar: 'كلية الاقتصاد والقانون',
-    campus_name_ar: 'القرية الجامعية ب',
-    pickup_points: ['البوابة الشرقية', 'قاعة المطالعة الكبرى'],
-    is_active: true,
-  },
-];
-
-// No fake student or merchant accounts pre-populated; only the platform Super Admin account exists for management
-export const INITIAL_USERS: User[] = [
-  {
-    id: 'user-super-admin',
-    email: 'admin@campusmarket.ly',
-    phone: '0910000000',
-    full_name: 'إدارة المنصة',
-    role: 'super_admin',
-    faculty_location_id: 'loc-main',
-    is_active: true,
-    permissions: ['all'],
-    created_at: '2026-11-06T00:00:00Z',
+    pickup_points: ['بوابة الطب البشري', 'بوابة طب الأسنان'],
   },
 ];
 
@@ -71,8 +63,8 @@ export const INITIAL_CATEGORIES: Category[] = [
     name_en: 'All',
     slug: 'all',
     icon_name: 'LayoutGrid',
-    color_bg: '#EAF3F4',
-    color_text: '#087E83',
+    color_bg: '#087E83',
+    color_text: '#FFFFFF',
     sort_order: 1,
     is_active: true,
   },
@@ -124,56 +116,51 @@ export const INITIAL_CATEGORIES: Category[] = [
     id: 'cat-food',
     name_ar: 'مأكولات ومشروبات',
     name_en: 'Food & Drinks',
-    slug: 'food',
+    slug: 'food-drinks',
     icon_name: 'Utensils',
     color_bg: '#EAF3F4',
     color_text: '#087E83',
     sort_order: 6,
     is_active: true,
   },
+];
+
+export const INITIAL_USERS: User[] = [
   {
-    id: 'cat-accessories',
-    name_ar: 'إكسسوارات',
-    name_en: 'Accessories',
-    slug: 'accessories',
-    icon_name: 'Watch',
-    color_bg: '#EAF3F4',
-    color_text: '#087E83',
-    sort_order: 7,
+    id: 'user-super-admin',
+    email: 'admin@campusmarket.ly',
+    phone: '0910000001',
+    full_name: 'إدارة المنصة — CampusMarket',
+    role: 'super_admin',
+    faculty_location_id: 'loc-main',
     is_active: true,
+    created_at: '2026-01-01T08:00:00Z',
   },
 ];
 
-// Strictly zero demo stores, zero demo products, zero fake orders, zero fake reviews!
+// Strictly empty: zero demo stores, zero demo products, zero fake orders, zero fake ratings
 export const INITIAL_STORES: Store[] = [];
 export const INITIAL_STORE_CATEGORIES: StoreCategory[] = [];
 export const INITIAL_PRODUCTS: Product[] = [];
 export const INITIAL_ORDERS: Order[] = [];
 export const INITIAL_REVIEWS: Review[] = [];
-export const INITIAL_NOTIFICATIONS: AppNotification[] = [];
 export const INITIAL_INVITATIONS: StoreInvitation[] = [];
 export const INITIAL_SUBSCRIPTIONS: StoreSubscription[] = [];
 export const INITIAL_AUDIT_LOGS: AuditLog[] = [];
+export const INITIAL_NOTIFICATIONS: AppNotification[] = [];
 
 export const INITIAL_BANNERS: Banner[] = [
   {
-    id: 'ban-campus-1',
+    id: 'ban-1',
     title_ar: 'كل احتياجاتك الجامعية في مكان واحد',
-    subtitle_ar: 'منتجات • خدمات • مستلزمات دراسية • والمزيد',
-    tags_ar: 'سوق الكلية الجامعي',
-    cta_text_ar: 'تسوق الآن',
+    subtitle_ar: 'منتجات • خدمات • مستلزمات دراسية والمزيد',
+    tags_ar: 'CampusMarket',
+    cta_text_ar: 'اكتشف المتاجر',
     target_link: '/stores',
-    image_url: './banner-campus-hero.png',
-    start_date: '2026-11-06',
+    image_url: '/campus-market/banner-campus-art.jpg',
+    start_date: '2026-01-01',
+    end_date: '2027-12-31',
     sort_order: 1,
     is_active: true,
   },
 ];
-
-export const INITIAL_PLATFORM_SETTINGS: PlatformSettings = {
-  revenue_model: 'hybrid',
-  commission_rate_percent: 5,
-  monthly_subscription_lyd: 50,
-  currency_symbol_ar: 'د.ل',
-  allow_demo_data: false,
-};

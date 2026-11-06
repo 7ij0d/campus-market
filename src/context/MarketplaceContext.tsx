@@ -55,7 +55,7 @@ interface MarketplaceContextType {
     student_id_number?: string;
   }) => { success: boolean; error?: string };
   registerMerchantByInvite: (data: {
-    token: string;
+    token?: string;
     full_name: string;
     email: string;
     phone: string;
@@ -65,9 +65,16 @@ interface MarketplaceContextType {
     description_ar: string;
     location_inside_campus: string;
     working_hours: string;
+    logo_url?: string;
+    cover_url?: string;
+    category_id?: string;
   }) => { success: boolean; error?: string };
   logout: () => void;
   updateUserProfile: (updates: Partial<User>) => void;
+
+  // Global Header Store Search
+  headerSearchQuery: string;
+  setHeaderSearchQuery: (q: string) => void;
 
   // Campus Location & Pickup Selection
   locations: CampusLocation[];
@@ -154,6 +161,7 @@ interface MarketplaceContextType {
   }) => StoreInvitation | null;
   adminCreateOrUpdateStore: (storeData: Partial<Store> & { id?: string }) => void;
   adminChangeStoreStatus: (storeId: string, status: Store['status']) => void;
+  adminDeleteStore: (storeId: string) => void;
   adminToggleProductVisibility: (productId: string, is_active: boolean) => void;
   adminSaveCategory: (catData: Partial<Category> & { id?: string }) => void;
   adminDeleteCategory: (catId: string) => void;
@@ -171,8 +179,26 @@ interface MarketplaceContextType {
 
 const MarketplaceContext = createContext<MarketplaceContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'campus_market_db_v2_turquoise';
+const STORAGE_KEY = 'campus_market_db_v3_presto_clean';
 export const LIBYAN_SPIDER_CLOUD_API = 'https://api.kurofangs.id.ly/campus-market';
+
+// Permanently purge any old v1/v2 cached keys from browser localStorage
+try {
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (
+      k &&
+      k.startsWith('campus_market_db') &&
+      !k.startsWith(STORAGE_KEY)
+    ) {
+      keysToRemove.push(k);
+    }
+  }
+  keysToRemove.forEach((k) => localStorage.removeItem(k));
+} catch {
+  // ignore
+}
 
 function loadFromStorage<T>(key: string, fallback: T): T {
   try {
@@ -246,6 +272,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     type: 'success' | 'error' | 'info';
   } | null>(null);
   const [cloudBooted, setCloudBooted] = useState(false);
+  const [headerSearchQuery, setHeaderSearchQuery] = useState('');
 
   const showToast = (text: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToastMessage({ text, type });
@@ -433,7 +460,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const registerMerchantByInvite = (data: {
-    token: string;
+    token?: string;
     full_name: string;
     email: string;
     phone: string;
@@ -443,16 +470,25 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     description_ar: string;
     location_inside_campus: string;
     working_hours: string;
+    logo_url?: string;
+    cover_url?: string;
+    category_id?: string;
   }) => {
-    const inv = invitations.find(
-      (i) => i.token.toUpperCase() === data.token.trim().toUpperCase() && !i.is_used
-    );
-    if (!inv) {
-      return { success: false, error: 'رمز الدعوة غير صالح أو تم استخدامه مسبقاً.' };
+    const cleanToken = (data.token || '').trim().toUpperCase();
+    let matchedInv: StoreInvitation | undefined;
+
+    if (cleanToken) {
+      matchedInv = invitations.find(
+        (i) => i.token.toUpperCase() === cleanToken && !i.is_used
+      );
+      if (!matchedInv) {
+        return { success: false, error: 'رمز الدعوة غير صالح أو تم استخدامه مسبقاً.' };
+      }
+      if (new Date(matchedInv.expires_at) < new Date()) {
+        return { success: false, error: 'انتهت صلاحية رمز الدعوة هذا.' };
+      }
     }
-    if (new Date(inv.expires_at) < new Date()) {
-      return { success: false, error: 'انتهت صلاحية رمز الدعوة هذا.' };
-    }
+
     if (users.some((u) => u.email.toLowerCase() === data.email.toLowerCase())) {
       return { success: false, error: 'البريد الإلكتروني مسجل مسبقاً.' };
     }
@@ -460,27 +496,31 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const newStoreId = `store-${Date.now()}`;
     const newUserId = `user-merch-${Date.now()}`;
 
+    const storeStatus: Store['status'] = matchedInv ? 'active' : 'pending';
+
     const newStore: Store = {
       id: newStoreId,
       owner_id: newUserId,
-      name_en: data.store_name_en.trim(),
-      name_ar: data.store_name_ar.trim(),
-      slug: data.store_name_en.toLowerCase().replace(/\s+/g, '-'),
+      name_en: (data.store_name_en || data.store_name_ar).trim(),
+      name_ar: (data.store_name_ar || data.store_name_en).trim(),
+      slug: (data.store_name_en || data.store_name_ar || `store-${Date.now()}`)
+        .toLowerCase()
+        .replace(/\s+/g, '-'),
       activity_type_ar: data.activity_type_ar.trim(),
       description_ar: data.description_ar.trim(),
-      category_id: inv.category_id || 'cat-services',
-      logo_url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=400&q=80',
-      cover_url: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=900&q=80',
+      category_id: matchedInv?.category_id || data.category_id || 'cat-services',
+      logo_url: (data.logo_url || '').trim(),
+      cover_url: (data.cover_url || '').trim(),
       icon_bg_color: '#087E83',
       icon_type: 'sparkles',
-      location_inside_campus: data.location_inside_campus.trim(),
+      location_inside_campus: data.location_inside_campus.trim() || 'داخل الكلية',
       working_hours: data.working_hours.trim() || '08:00 - 17:00',
       is_open: true,
       supports_pickup: true,
       supports_delivery: true,
       delivery_fee_lyd: 3,
       contact_phone: data.phone.trim(),
-      status: 'active',
+      status: storeStatus,
       is_demo: false,
       created_at: new Date().toISOString(),
     };
@@ -499,11 +539,19 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     setStores((prev) => [...prev, newStore]);
     setUsers((prev) => [...prev, newMerchant]);
-    setInvitations((prev) =>
-      prev.map((i) => (i.id === inv.id ? { ...i, is_used: true, used_by_user_id: newUserId } : i))
-    );
+    if (matchedInv) {
+      setInvitations((prev) =>
+        prev.map((i) =>
+          i.id === matchedInv!.id ? { ...i, is_used: true, used_by_user_id: newUserId } : i
+        )
+      );
+    }
     setCurrentUserId(newUserId);
-    showToast(`تم تسجيل متجرك (${newStore.name_en}) وتفعيل لوحة التاجر بنجاح!`);
+    showToast(
+      storeStatus === 'active'
+        ? `تم تسجيل متجرك (${newStore.name_ar}) وتفعيله بنجاح!`
+        : `تم استلام طلب اشتراك متجرك (${newStore.name_ar}) وسيظهر في الرئيسية فور اعتماده من الإدارة!`
+    );
     return { success: true };
   };
 
@@ -1298,29 +1346,25 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setStores((prev) =>
         prev.map((s) => (s.id === storeData.id ? ({ ...s, ...storeData } as Store) : s))
       );
-      logAudit('تعديل بيانات متجر', 'store', storeData.id, `تعديل متجر ${storeData.name_en || ''}`);
-      showToast('تم تحديث بيانات المتجر');
+      logAudit('تعديل بيانات متجر', 'store', storeData.id, `تعديل متجر ${storeData.name_ar || storeData.name_en || ''}`);
+      showToast('تم تحديث بيانات المتجر بنجاح');
     } else {
       const newStore: Store = {
         id: `store-${Date.now()}`,
         owner_id: storeData.owner_id || 'user-super-admin',
-        name_en: storeData.name_en || 'New Campus Store',
-        name_ar: storeData.name_ar || 'متجر جامعي جديد',
-        slug: (storeData.name_en || 'store').toLowerCase().replace(/\s+/g, '-'),
+        name_en: storeData.name_en || storeData.name_ar || 'Campus Store',
+        name_ar: storeData.name_ar || storeData.name_en || 'متجر جامعي جديد',
+        slug: (storeData.name_en || storeData.name_ar || 'store').toLowerCase().replace(/\s+/g, '-'),
         activity_type_ar: storeData.activity_type_ar || 'منتجات وخدمات طلابية',
         description_ar: storeData.description_ar || 'متجر معتمد داخل الكلية.',
         category_id: storeData.category_id || 'cat-services',
-        logo_url:
-          storeData.logo_url ||
-          'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=400&q=80',
-        cover_url:
-          storeData.cover_url ||
-          'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80',
+        logo_url: (storeData.logo_url ?? '').trim(),
+        cover_url: (storeData.cover_url ?? '').trim(),
         icon_bg_color: storeData.icon_bg_color || '#087E83',
         icon_type: storeData.icon_type || 'sparkles',
         location_inside_campus: storeData.location_inside_campus || 'داخل الكلية',
         working_hours: storeData.working_hours || '08:00 - 17:00',
-        is_open: true,
+        is_open: storeData.is_open ?? true,
         supports_pickup: true,
         supports_delivery: true,
         delivery_fee_lyd: Number(storeData.delivery_fee_lyd ?? 3),
@@ -1330,7 +1374,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         created_at: new Date().toISOString(),
       };
       setStores((prev) => [newStore, ...prev]);
-      logAudit('إضافة متجر جديد', 'store', newStore.id, `إضافة متجر ${newStore.name_en}`);
+      logAudit('إضافة متجر جديد', 'store', newStore.id, `إضافة متجر ${newStore.name_ar}`);
       showToast('تم إنشاء المتجر الجديد بنجاح');
     }
   };
@@ -1339,7 +1383,18 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!isAdmin) return;
     setStores((prev) => prev.map((s) => (s.id === storeId ? { ...s, status } : s)));
     logAudit('تغيير حالة متجر', 'store', storeId, `تغيير الحالة إلى ${status}`);
-    showToast('تم تحديث حالة اعتماد المتجر');
+    showToast(status === 'active' ? 'تم قبول واعتماد المتجر بنجاح' : 'تم تحديث حالة المتجر');
+  };
+
+  const adminDeleteStore = (storeId: string) => {
+    if (!isAdmin) return;
+    const target = stores.find((s) => s.id === storeId);
+    setStores((prev) => prev.filter((s) => s.id !== storeId));
+    setProducts((prev) => prev.filter((p) => p.store_id !== storeId));
+    setStoreCategories((prev) => prev.filter((sc) => sc.store_id !== storeId));
+    setReviews((prev) => prev.filter((r) => r.store_id !== storeId));
+    logAudit('حذف متجر نهائياً', 'store', storeId, `تم حذف المتجر ${target?.name_ar || storeId} وجميع منتجاته`);
+    showToast('تم حذف المتجر وجميع منتجاته نهائياً من المنصة', 'info');
   };
 
   const adminToggleProductVisibility = (productId: string, is_active: boolean) => {
@@ -1465,6 +1520,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         registerMerchantByInvite,
         logout,
         updateUserProfile,
+        headerSearchQuery,
+        setHeaderSearchQuery,
         locations,
         selectedLocationId,
         selectedPickupPoint,
@@ -1512,6 +1569,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         adminCreateStoreInvitation,
         adminCreateOrUpdateStore,
         adminChangeStoreStatus,
+        adminDeleteStore,
         adminToggleProductVisibility,
         adminSaveCategory,
         adminDeleteCategory,
