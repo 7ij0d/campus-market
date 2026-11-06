@@ -64,7 +64,7 @@ interface MarketplaceContextType {
     activity_type_ar: string;
     description_ar: string;
     location_inside_campus: string;
-    working_hours: string;
+    working_hours?: string;
     logo_url?: string;
     cover_url?: string;
     category_id?: string;
@@ -469,7 +469,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     activity_type_ar: string;
     description_ar: string;
     location_inside_campus: string;
-    working_hours: string;
+    working_hours?: string;
     logo_url?: string;
     cover_url?: string;
     category_id?: string;
@@ -496,7 +496,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const newStoreId = `store-${Date.now()}`;
     const newUserId = `user-merch-${Date.now()}`;
 
-    const storeStatus: Store['status'] = matchedInv ? 'active' : 'pending';
+    // Requirement 7: Even if token exists, new stores start as pending until admin approves
+    const storeStatus: Store['status'] = 'pending';
 
     const newStore: Store = {
       id: newStoreId,
@@ -514,7 +515,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       icon_bg_color: '#087E83',
       icon_type: 'sparkles',
       location_inside_campus: data.location_inside_campus.trim() || 'داخل الكلية',
-      working_hours: data.working_hours.trim() || '08:00 - 17:00',
+      working_hours: undefined,
       is_open: true,
       supports_pickup: true,
       supports_delivery: true,
@@ -548,9 +549,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
     setCurrentUserId(newUserId);
     showToast(
-      storeStatus === 'active'
-        ? `تم تسجيل متجرك (${newStore.name_ar}) وتفعيله بنجاح!`
-        : `تم استلام طلب اشتراك متجرك (${newStore.name_ar}) وسيظهر في الرئيسية فور اعتماده من الإدارة!`
+      'تم إرسال طلب إنشاء متجرك بنجاح! المتجر قيد المراجعة وسيظهر في المنصة فور اعتماده من الإدارة.',
+      'success'
     );
     return { success: true };
   };
@@ -1363,7 +1363,6 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         icon_bg_color: storeData.icon_bg_color || '#087E83',
         icon_type: storeData.icon_type || 'sparkles',
         location_inside_campus: storeData.location_inside_campus || 'داخل الكلية',
-        working_hours: storeData.working_hours || '08:00 - 17:00',
         is_open: storeData.is_open ?? true,
         supports_pickup: true,
         supports_delivery: true,

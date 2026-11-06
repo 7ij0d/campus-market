@@ -269,16 +269,12 @@ export const StoreDetailsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Working Hours & Campus Location Pills */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-md w-full mt-4">
-            <div className="h-10 px-4 rounded-full bg-[#F8FAFC] border border-[#E5EAED] flex items-center justify-center gap-2 text-xs font-bold text-[#18343B]">
-              <Clock className="w-4 h-4 text-[#087E83] shrink-0" />
-              <span>ساعات العمل: {store.working_hours || '08:00 - 17:00'}</span>
-            </div>
+          {/* Campus Location Pill */}
+          <div className="max-w-md w-full mt-4">
             <div className="h-10 px-4 rounded-full bg-[#F8FAFC] border border-[#E5EAED] flex items-center justify-center gap-2 text-xs font-bold text-[#18343B]">
               <MapPin className="w-4 h-4 text-[#087E83] shrink-0" />
               <span className="truncate">
-                {store.location_inside_campus || 'داخل الكلية'}
+                الموقع: {store.location_inside_campus || 'داخل الكلية'}
               </span>
             </div>
           </div>
@@ -519,10 +515,6 @@ export const StoreDetailsPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4 text-[#087E83]" />
               <span>الموقع: {store.location_inside_campus || 'داخل الكلية'}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-[#087E83]" />
-              <span>ساعات العمل: {store.working_hours || '08:00 - 17:00'}</span>
             </div>
             {store.contact_phone && (
               <div className="flex items-center gap-2 font-bold text-[#087E83]">

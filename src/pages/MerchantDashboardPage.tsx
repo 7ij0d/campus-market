@@ -75,9 +75,6 @@ export const MerchantDashboardPage: React.FC = () => {
   const [storeLoc, setStoreLoc] = useState(
     merchantStore?.location_inside_campus || ''
   );
-  const [storeHours, setStoreHours] = useState(
-    merchantStore?.working_hours || ''
-  );
   const [storePhone, setStorePhone] = useState(
     merchantStore?.contact_phone || ''
   );
@@ -97,7 +94,6 @@ export const MerchantDashboardPage: React.FC = () => {
       setStoreActivity(merchantStore.activity_type_ar || '');
       setStoreDesc(merchantStore.description_ar || '');
       setStoreLoc(merchantStore.location_inside_campus || '');
-      setStoreHours(merchantStore.working_hours || '');
       setStorePhone(merchantStore.contact_phone || '');
       setStoreDeliveryFee(merchantStore.delivery_fee_lyd ?? 3);
       setStoreLogoUrl(merchantStore.logo_url || '');
@@ -505,18 +501,6 @@ export const MerchantDashboardPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#18343B] mb-1">
-                    ساعات العمل
-                  </label>
-                  <input
-                    type="text"
-                    dir="ltr"
-                    value={storeHours}
-                    onChange={(e) => setStoreHours(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#18343B] mb-1">
                     رقم التواصل
                   </label>
                   <input
@@ -550,7 +534,6 @@ export const MerchantDashboardPage: React.FC = () => {
                     activity_type_ar: storeActivity,
                     description_ar: storeDesc,
                     location_inside_campus: storeLoc,
-                    working_hours: storeHours,
                     contact_phone: storePhone,
                     delivery_fee_lyd: storeDeliveryFee,
                     logo_url: storeLogoUrl,

@@ -37,7 +37,7 @@ export const StoresPage: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => navigate('/account?become_merchant=1')}
+          onClick={() => navigate('/register-store')}
           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold transition"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -61,7 +61,7 @@ export const StoresPage: React.FC = () => {
           <div className="pt-2">
             <button
               type="button"
-              onClick={() => navigate('/account?become_merchant=1')}
+              onClick={() => navigate('/register-store')}
               className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs sm:text-sm font-extrabold shadow-xs transition active:scale-95"
             >
               <Plus className="w-4 h-4" />

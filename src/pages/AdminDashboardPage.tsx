@@ -272,7 +272,6 @@ export const AdminDashboardPage: React.FC = () => {
                 activity_type_ar: '',
                 description_ar: '',
                 location_inside_campus: 'داخل الكلية',
-                working_hours: '08:00 - 17:00',
                 contact_phone: '',
                 logo_url: '',
                 cover_url: '',
@@ -1213,7 +1212,6 @@ export const AdminDashboardPage: React.FC = () => {
                   icon_type: 'sparkles',
                   location_inside_campus:
                     editingStore.location_inside_campus || 'داخل الكلية',
-                  working_hours: editingStore.working_hours || '08:00 - 17:00',
                   is_open: editingStore.is_open ?? true,
                   supports_pickup: true,
                   supports_delivery: true,
@@ -1360,7 +1358,7 @@ export const AdminDashboardPage: React.FC = () => {
                   className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                 />
               </div>
-              <div>
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-[#18343B] mb-1">
                   موقع المتجر داخل الجامعة
                 </label>
@@ -1374,23 +1372,6 @@ export const AdminDashboardPage: React.FC = () => {
                     })
                   }
                   className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-[#18343B] mb-1">
-                  ساعات العمل
-                </label>
-                <input
-                  type="text"
-                  dir="ltr"
-                  value={editingStore.working_hours || ''}
-                  onChange={(e) =>
-                    setEditingStore({
-                      ...editingStore,
-                      working_hours: e.target.value,
-                    })
-                  }
-                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
                 />
               </div>
             </div>

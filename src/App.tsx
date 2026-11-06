@@ -12,6 +12,7 @@ import { OrdersPage } from './pages/OrdersPage';
 import { AccountPage } from './pages/AccountPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { FavoritesPage } from './pages/FavoritesPage';
+import { RegisterStorePage } from './pages/RegisterStorePage';
 import { MerchantDashboardPage } from './pages/MerchantDashboardPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 
@@ -56,6 +57,7 @@ export const App: React.FC = () => {
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/favorites" element={<FavoritesPage />} />
             <Route path="/merchant" element={<MerchantDashboardPage />} />
+            <Route path="/register-store" element={<RegisterStorePage />} />
             <Route path="/admin" element={<AdminDashboardPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

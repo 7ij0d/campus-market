@@ -60,10 +60,12 @@ export const AccountPage: React.FC = () => {
   useEffect(() => {
     const tabParam = searchParams.get('tab');
     const becomeMerchant = searchParams.get('become_merchant');
-    if (tabParam === 'merchant_invite' || becomeMerchant === '1') {
-      setAuthModalMode('merchant_invite');
+    if (becomeMerchant === '1') {
+      navigate('/register-store', { replace: true });
+    } else if (tabParam === 'merchant_invite') {
+      navigate('/register-store', { replace: true });
     }
-  }, [searchParams]);
+  }, [searchParams, navigate]);
 
   // Login State
   const [loginEmail, setLoginEmail] = useState('');
@@ -84,7 +86,6 @@ export const AccountPage: React.FC = () => {
   const [mActivity, setMActivity] = useState('');
   const [mDesc, setMDesc] = useState('');
   const [mLocation, setMLocation] = useState('داخل الكلية');
-  const [mWorkingHours, setMWorkingHours] = useState('08:00 - 17:00');
   const [mLogoUrl, setMLogoUrl] = useState('');
   const [mCoverUrl, setMCoverUrl] = useState('');
 
@@ -176,7 +177,6 @@ export const AccountPage: React.FC = () => {
       activity_type_ar: mActivity || 'متجر جامعي',
       description_ar: mDesc || mActivity || 'متجر داخل الكلية',
       location_inside_campus: mLocation || 'داخل الكلية',
-      working_hours: mWorkingHours || '08:00 - 17:00',
       logo_url: mLogoUrl,
       cover_url: mCoverUrl,
     });
@@ -287,10 +287,7 @@ export const AccountPage: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => {
-                  setAuthError(null);
-                  setAuthModalMode('merchant_invite');
-                }}
+                onClick={() => navigate('/register-store')}
                 className="w-full h-10 rounded-full bg-[#EAF3F4] hover:bg-[#DCEBED] text-[#087E83] text-xs font-extrabold flex items-center justify-center gap-1.5 transition"
               >
                 <StoreIcon className="w-3.5 h-3.5" />
@@ -471,7 +468,7 @@ export const AccountPage: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setAuthModalMode('merchant_invite')}
+            onClick={() => navigate('/register-store')}
             className="h-9 px-3.5 rounded-full bg-[#EAF3F4] hover:bg-[#DCEBED] text-[#087E83] text-xs font-extrabold transition"
           >
             اشتراك متجر جديد
@@ -648,7 +645,6 @@ export const AccountPage: React.FC = () => {
                       icon_bg_color: '#087E83',
                       icon_type: 'sparkles',
                       location_inside_campus: mLocation,
-                      working_hours: mWorkingHours,
                       is_open: true,
                       supports_pickup: true,
                       supports_delivery: true,
@@ -776,7 +772,7 @@ export const AccountPage: React.FC = () => {
                       className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
                     />
                   </div>
-                  <div>
+                  <div className="sm:col-span-2">
                     <label className="block text-xs font-bold text-[#18343B] mb-1">
                       موقع المتجر داخل الجامعة *
                     </label>
@@ -787,20 +783,6 @@ export const AccountPage: React.FC = () => {
                       onChange={(e) => setMLocation(e.target.value)}
                       placeholder="مثال: الساحة الطلابية / مبنى الهندسة"
                       className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-[#18343B] mb-1">
-                      ساعات العمل *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      dir="ltr"
-                      value={mWorkingHours}
-                      onChange={(e) => setMWorkingHours(e.target.value)}
-                      placeholder="08:00 - 17:00"
-                      className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-en"
                     />
                   </div>
                   <div>
