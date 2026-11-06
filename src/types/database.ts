@@ -21,6 +21,10 @@ export interface User {
   store_id?: string; // If role === 'merchant'
   permissions?: string[];
   created_at: string;
+  username?: string;
+  password?: string;
+  must_change_password?: boolean;
+  last_login_at?: string;
 }
 
 export interface Category {
@@ -44,6 +48,7 @@ export interface StoreCategory {
 
 export interface Store {
   id: string;
+  store_code?: string;
   owner_id: string;
   name_en: string;
   name_ar: string;
@@ -64,6 +69,7 @@ export interface Store {
   contact_phone: string;
   status: 'pending' | 'active' | 'suspended' | 'rejected';
   is_demo: boolean;
+  views_count?: number;
   created_at: string;
 }
 

@@ -58,6 +58,7 @@ export const AdminDashboardPage: React.FC = () => {
     adminCreateStoreInvitation,
     adminCreateOrUpdateStore,
     adminChangeStoreStatus,
+    adminIssueMerchantCredentials,
     adminDeleteStore,
     adminToggleProductVisibility,
     saveMerchantProduct,
@@ -81,6 +82,16 @@ export const AdminDashboardPage: React.FC = () => {
   const [editingStore, setEditingStore] = useState<
     (Partial<Store> & { id?: string }) | null
   >(null);
+
+  // Issued Merchant Credentials Modal
+  const [issuedCredentials, setIssuedCredentials] = useState<{
+    storeName: string;
+    storeCode: string;
+    username: string;
+    tempPassword?: string;
+    loginUrl: string;
+  } | null>(null);
+  const [copiedCreds, setCopiedCreds] = useState(false);
 
   // Direct Add Product / Service State
   const [newProdName, setNewProdName] = useState('');
@@ -451,11 +462,17 @@ export const AdminDashboardPage: React.FC = () => {
                           : 'موقوف / مرفوض'}
                       </span>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         {st.status !== 'active' && (
                           <button
                             type="button"
-                            onClick={() => adminChangeStoreStatus(st.id, 'active')}
+                            onClick={() => {
+                              adminChangeStoreStatus(st.id, 'active');
+                              const res = adminIssueMerchantCredentials(st.id);
+                              if (res.success && res.credentials) {
+                                setIssuedCredentials(res.credentials);
+                              }
+                            }}
                             className="px-3.5 py-1.5 rounded-full bg-[#087E83] text-white text-xs font-extrabold flex items-center gap-1"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
@@ -473,6 +490,22 @@ export const AdminDashboardPage: React.FC = () => {
                             <span>إيقاف</span>
                           </button>
                         )}
+
+                        {/* Issue / View Merchant Credentials Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const res = adminIssueMerchantCredentials(st.id);
+                            if (res.success && res.credentials) {
+                              setIssuedCredentials(res.credentials);
+                            }
+                          }}
+                          className="px-2.5 py-1.5 rounded-full bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-bold flex items-center gap-1"
+                          title="إصدار أو إعادة تعيين كلمة مرور وحساب المتجر"
+                        >
+                          <KeyRound className="w-3.5 h-3.5" />
+                          <span>بيانات الدخول</span>
+                        </button>
 
                         <button
                           type="button"
@@ -1394,6 +1427,110 @@ export const AdminDashboardPage: React.FC = () => {
                 className="px-6 h-11 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-[#74838A] text-xs font-bold"
               >
                 إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ISSUED MERCHANT CREDENTIALS MODAL */}
+      {issuedCredentials && (
+        <div className="fixed inset-0 z-50 bg-[#18343B]/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-[32px] max-w-md w-full p-6 sm:p-7 border border-[#E5EAED] shadow-2xl space-y-5 animate-in zoom-in-95">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center border border-amber-200 shadow-xs">
+                  <KeyRound className="w-6 h-6 stroke-[2]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-[#18343B]">
+                    بيانات دخول صاحب المتجر
+                  </h3>
+                  <p className="text-xs text-[#74838A]">
+                    {issuedCredentials.storeName}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIssuedCredentials(null);
+                  setCopiedCreds(false);
+                }}
+                className="w-8 h-8 rounded-full bg-[#F8FAFC] hover:bg-[#E5EAED] text-[#74838A] flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] space-y-3 text-xs">
+              <div className="flex items-center justify-between border-b border-[#E5EAED] pb-2">
+                <span className="text-[#74838A] font-bold">اسم المستخدم (Username):</span>
+                <span className="font-black text-[#18343B] font-en text-sm">
+                  {issuedCredentials.username}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between border-b border-[#E5EAED] pb-2">
+                <span className="text-[#74838A] font-bold">رمز المتجر الفريد (Store ID):</span>
+                <span className="font-black text-[#087E83] font-en text-sm">
+                  {issuedCredentials.storeCode}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between border-b border-[#E5EAED] pb-2">
+                <span className="text-[#74838A] font-bold">كلمة المرور المؤقتة:</span>
+                <span className="font-black text-rose-600 font-en text-sm bg-rose-50 px-2 py-0.5 rounded-md">
+                  {issuedCredentials.tempPassword}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[#74838A] font-bold">صفحة الدخول:</span>
+                <span className="font-bold text-[#087E83] font-en text-[11px]">
+                  /#/merchant-login
+                </span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-[#74838A] leading-relaxed">
+              * سيُطلب من التاجر تغيير كلمة المرور هذه إلى كلمة مرور شخصية عند أول تسجيل دخول له. انسخ هذه البيانات وسلمها لصاحب المتجر.
+            </p>
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const clipText = `مرحباً بك في CampusMarket!\nتم اعتماد متجرك (${issuedCredentials.storeName}). إليك بيانات الدخول الخاصة بمتجرك:\n- اسم المستخدم: ${issuedCredentials.username}\n- رمز المتجر: ${issuedCredentials.storeCode}\n- كلمة المرور: ${issuedCredentials.tempPassword}\n\nرابط تسجيل الدخول:\n${issuedCredentials.loginUrl}`;
+                  navigator.clipboard.writeText(clipText);
+                  setCopiedCreds(true);
+                  setTimeout(() => setCopiedCreds(false), 2500);
+                }}
+                className="flex-1 h-11 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-xs transition"
+              >
+                {copiedCreds ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                    <span>تم نسخ البيانات بنجاح!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>نسخ بيانات الدخول للتاجر</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIssuedCredentials(null);
+                  setCopiedCreds(false);
+                }}
+                className="px-5 h-11 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-xs font-bold text-[#74838A]"
+              >
+                إغلاق
               </button>
             </div>
           </div>

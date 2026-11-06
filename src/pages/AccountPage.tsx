@@ -287,11 +287,19 @@ export const AccountPage: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => navigate('/register-store')}
+                onClick={() => navigate('/merchant-login')}
                 className="w-full h-10 rounded-full bg-[#EAF3F4] hover:bg-[#DCEBED] text-[#087E83] text-xs font-extrabold flex items-center justify-center gap-1.5 transition"
               >
                 <StoreIcon className="w-3.5 h-3.5" />
-                <span>اشترك بمتجرك في CampusMarket</span>
+                <span>دخول أصحاب المتاجر</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/register-store')}
+                className="w-full h-10 rounded-full bg-white hover:bg-[#F8FAFC] border border-[#E5EAED] text-[#74838A] hover:text-[#18343B] text-xs font-bold flex items-center justify-center gap-1.5 transition"
+              >
+                <span>ليس لديك متجر؟ قدّم طلب إنشاء متجر</span>
               </button>
             </div>
           </>

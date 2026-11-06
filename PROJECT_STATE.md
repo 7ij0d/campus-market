@@ -1,7 +1,7 @@
 # CampusMarket — سوق الكلية الجامعي (`PROJECT_STATE.md`)
 
 ## 1. Project Overview & Tech Stack
-- **Platform**: **CampusMarket – سوق الكلية الجامعي** (v3.1 Presto-Grade Architecture).
+- **Platform**: **CampusMarket – سوق الكلية الجامعي** (v3.2 Merchant Independent Authentication & Elevated Studio).
 - **Tech Stack**:
   - Frontend: React 19 + TypeScript + Tailwind CSS v3 + Lucide Icons + React Router v7 (`HashRouter` for GitHub Pages compatibility).
   - Typography: `IBM Plex Sans Arabic` + `Plus Jakarta Sans` (RTL-first, Libyan Dinar `د.ل` currency).
@@ -9,34 +9,46 @@
   - Cloud Backend: Node.js + Express + PostgreSQL (`kuro_cloud`) hosted on **Libyan Spider Cloud VPS** (`102.203.202.115`), proxied via HTTPS Caddy at `https://api.kurofangs.id.ly/campus-market/api/*`.
   - Live Deployment: GitHub Pages (`https://7ij0d.github.io/campus-market/`).
 
-## 2. Done & Verified (v3.1 Store Registration Redesign & Hours Removal)
-- **Dedicated Store Registration Page (`src/pages/RegisterStorePage.tsx` at `/register-store`)**:
-  - **Visual Hierarchy & Header**: Distinct title "إنشاء متجرك في CampusMarket" with subtitle and a compact 3-step indicator (`1. بيانات المتجر`, `2. صور المتجر`, `3. بيانات التواصل`).
-  - **Clean Image Upload Slots (Zero Fake/Demo Food Graphics)**:
-    - 1:1 Square Thumbnail Slot (`صورة المتجر المصغرة`) with file picker, instant client-side canvas compression, remove/change action, and live rendering.
-    - ~3:1 Wide Banner Slot (`صورة بانر المتجر`) with file picker, aspect ratio guidance (1200x400), instant canvas compression, remove/change action, and live rendering.
-    - URL alternate input option for both thumbnail and banner.
-  - **Live Store Card Preview (`StoreCard previewMode`)**:
-    - Real-time interactive preview showing exactly how the store card will appear to students on the Home Page and Stores List.
-  - **Clean Form Structure**:
-    - Store Details: Store Name, Activity Type, Campus Location, and Multiline Description.
-    - Merchant Contact: Owner Full Name, Libyan Phone (`091/092/094/093/095` format validation), and Email (`@` validation).
-    - Optional Instant-Activation Token field.
-  - **Status & Anti-Duplication Handling**:
-    - Default status set to `'pending'` (قيد المراجعة والاعتماد من قبل إدارة المنصة).
-    - Double-click prevention with loading spinner state on `إرسال طلب إنشاء المتجر`.
-    - Dedicated success confirmation screen with order tracking and direct home navigation.
-- **Complete Elimination of Working Hours (`ساعات العمل`)**:
-  - Permanently removed working hours fields, labels, inputs, and display badges from:
-    - `RegisterStorePage.tsx`
-    - `StoreDetailsPage.tsx` (header badge and about section)
-    - `MerchantDashboardPage.tsx` (store settings form & update handler)
-    - `AdminDashboardPage.tsx` (add/edit store modal and store preview)
-    - `AccountPage.tsx` (merchant modal & preview)
-    - `MarketplaceContext.tsx` (merchant creation & update payloads)
-- **Verified Build & Tests**:
-  - `tsc -b && vite build` successfully compiled with zero errors.
+## 2. Done & Verified (v3.2 Merchant Independent Authentication & Studio Layout)
+- **Dedicated Merchant Login Screen (`src/pages/MerchantLoginPage.tsx` at `/merchant-login`)**:
+  - Implemented exact visual hierarchy matching reference design (`media_1793975314831_ff72f18b.jpg` left side):
+    - Top header branding: CampusMarket + mortarboard cap logo + store awning illustration.
+    - Title: **دخول أصحاب المتاجر** | Subtitle: **سجّل دخولك لإدارة متجرك**.
+    - Flexible Login Identifier: Supports Username (اسم المستخدم) or Store ID / Unique Code (`STR-XXXX`) or registered Email.
+    - Password Input with toggleable `Eye` / `EyeOff` show/hide.
+    - `تذكّرني` (Remember me) checkbox and `نسيت كلمة المرور؟` (Forgot password popup).
+    - Primary CTA button: **تسجيل الدخول** with log-in icon.
+    - Bottom onboarding card: **ليس لديك متجر بعد؟ قدّم طلب إنشاء متجر** (redirects to `/register-store`).
+    - Redirects directly to `/merchant` upon successful authentication (zero customer redirect).
+- **Elevated Merchant Dashboard Layout (`src/pages/MerchantDashboardPage.tsx` at `/merchant`)**:
+  - Implemented exact visual layout matching reference design (`media_1793975314831_ff72f18b.jpg` right side):
+    - Right Sidebar (RTL layout) with:
+      - Store Avatar circle with Camera icon for instant thumbnail upload & canvas compression.
+      - Store Name and Active Badge (`● مفعل` or `● بانتظار الاعتماد`).
+      - Full vertical navigation menu:
+        1. **الرئيسية** (Overview)
+        2. **بيانات المتجر** (Store Info)
+        3. **المنتجات** (Products)
+        4. **الطلبات** (Orders)
+        5. **التقييمات** (Reviews)
+        6. **إحصائيات** (Analytics & Reports)
+        7. **إعدادات الحساب** (Account Settings & Password Change)
+        8. **تسجيل الخروج** (Logout -> `/merchant-login`)
+    - Main Overview Screen:
+      - Soft mint/teal Welcome Banner with Open store graphic: *"مرحبًا بك في لوحة متجرك — قم بإدارة منتجاتك وطلباتك وتحديث بيانات متجرك بكل سهولة."*
+      - 4 Metric KPI Cards: **زيارات المتجر** (Store Visits), **إجمالي المنتجات** (Total Products), **إجمالي الطلبات** (Total Orders), **التقييم** (Rating average).
+      - **إدارة المتجر** Card with wide banner & circular logo preview (each equipped with camera upload button) + Edit pencil icon + 4 Quick Action Pills (`+ إضافة منتج جديد`, `إدارة المنتجات`, `إدارة الطلبات`, `عرض التقييمات`).
+    - Account Settings & Password Update:
+      - Display of Username, Store ID (`STR-XXXX`), Email, and Phone.
+      - Form to change password with mandatory first-login prompt if `must_change_password` is set.
+- **Strict Role & Data Isolation**:
+  - Merchants can only query and mutate data where `product.store_id === currentUser.store_id`, `order.store_id === currentUser.store_id`, and `review.store_id === currentUser.store_id`.
+  - Customer accounts, merchant accounts, and admin accounts are strictly segregated.
+- **Admin Dashboard Integration (`AdminDashboardPage.tsx`)**:
+  - When approving pending stores, admins can issue or reset merchant credentials (`adminIssueMerchantCredentials`).
+  - Dedicated "بيانات الدخول" button per store with modal displaying: Username, Store Code, Temporary Password, and one-click "نسخ بيانات الدخول للتاجر" button.
 
 ## 3. Immediate Next Steps
-- Merchants can register their stores directly at: `https://7ij0d.github.io/campus-market/#/register-store`.
-- Admins can review, approve, and manage stores at: `https://7ij0d.github.io/campus-market/#/admin`.
+- Merchants can log in directly at: `https://7ij0d.github.io/campus-market/#/merchant-login`.
+- Manage products and orders at: `https://7ij0d.github.io/campus-market/#/merchant`.
+- Admins can manage credentials and approve stores at: `https://7ij0d.github.io/campus-market/#/admin`.

@@ -46,6 +46,27 @@ interface MarketplaceContextType {
   currentUser: User | null;
   users: User[];
   loginByEmail: (email: string) => { success: boolean; error?: string };
+  merchantLogin: (data: { identifier: string; password: string; rememberMe?: boolean }) => {
+    success: boolean;
+    error?: string;
+    storeId?: string;
+    mustChangePassword?: boolean;
+  };
+  merchantChangePassword: (data: { oldPassword?: string; newPassword: string }) => {
+    success: boolean;
+    error?: string;
+  };
+  adminIssueMerchantCredentials: (storeId: string) => {
+    success: boolean;
+    error?: string;
+    credentials?: {
+      storeName: string;
+      storeCode: string;
+      username: string;
+      tempPassword?: string;
+      loginUrl: string;
+    };
+  };
   switchQuickAccount: (userId: string) => void;
   registerCustomer: (data: {
     full_name: string;
@@ -459,6 +480,113 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return { success: true };
   };
 
+  const merchantLogin = (data: {
+    identifier: string;
+    password: string;
+    rememberMe?: boolean;
+  }) => {
+    const cleanId = data.identifier.trim().toLowerCase();
+    const cleanPass = data.password.trim();
+
+    if (!cleanId) {
+      return { success: false, error: 'يرجى إدخال اسم المستخدم أو رمز المتجر.' };
+    }
+    if (!cleanPass) {
+      return { success: false, error: 'يرجى إدخال كلمة المرور.' };
+    }
+
+    // Match merchant by username, email, store_id, or store_code
+    const targetUser = users.find((u) => {
+      if (u.role !== 'merchant') return false;
+      if (u.username && u.username.toLowerCase() === cleanId) return true;
+      if (u.email.toLowerCase() === cleanId) return true;
+      if (u.store_id && u.store_id.toLowerCase() === cleanId) return true;
+      const st = stores.find((s) => s.id === u.store_id);
+      if (st && st.store_code && st.store_code.toLowerCase() === cleanId) return true;
+      return false;
+    });
+
+    if (!targetUser) {
+      return {
+        success: false,
+        error: 'اسم المستخدم أو رمز المتجر غير موجود. يرجى التحقق من بيانات الدخول.',
+      };
+    }
+
+    if (!targetUser.is_active) {
+      return {
+        success: false,
+        error: 'تم تعطيل هذا الحساب من قبل الإدارة. يرجى مراجعة إدارة الكلية.',
+      };
+    }
+
+    // Check password (fallback to 123456 if none set initially)
+    const validPassword = targetUser.password || '123456';
+    if (cleanPass !== validPassword) {
+      return {
+        success: false,
+        error: 'كلمة المرور غير صحيحة، يرجى التأكد وإعادة المحاولة.',
+      };
+    }
+
+    const store = stores.find((s) => s.id === targetUser.store_id);
+    if (store && store.status === 'suspended') {
+      return {
+        success: false,
+        error: 'تم تعليق حساب هذا المتجر من قبل الإدارة، يرجى مراجعة إدارة الكلية.',
+      };
+    }
+
+    const nowIso = new Date().toISOString();
+    setUsers((prev) =>
+      prev.map((u) => (u.id === targetUser.id ? { ...u, last_login_at: nowIso } : u))
+    );
+    setCurrentUserId(targetUser.id);
+
+    if (data.rememberMe) {
+      try {
+        localStorage.setItem('cm_merchant_remember', targetUser.id);
+      } catch {
+        // ignore
+      }
+    }
+
+    showToast(`مرحباً بك في متجرك، ${targetUser.full_name}`, 'success');
+    return {
+      success: true,
+      storeId: targetUser.store_id,
+      mustChangePassword: targetUser.must_change_password ?? false,
+    };
+  };
+
+  const merchantChangePassword = (data: {
+    oldPassword?: string;
+    newPassword: string;
+  }) => {
+    if (!currentUser || currentUser.role !== 'merchant') {
+      return { success: false, error: 'غير مصرح' };
+    }
+    if (!data.newPassword || data.newPassword.length < 6) {
+      return {
+        success: false,
+        error: 'كلمة المرور الجديدة يجب أن تتكون من 6 خانات أو أكثر.',
+      };
+    }
+    if (data.oldPassword && currentUser.password && data.oldPassword !== currentUser.password) {
+      return { success: false, error: 'كلمة المرور الحالية غير صحيحة.' };
+    }
+
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === currentUser.id
+          ? { ...u, password: data.newPassword, must_change_password: false }
+          : u
+      )
+    );
+    showToast('تم تحديث كلمة مرور متجرك بنجاح!', 'success');
+    return { success: true };
+  };
+
   const registerMerchantByInvite = (data: {
     token?: string;
     full_name: string;
@@ -495,12 +623,21 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     const newStoreId = `store-${Date.now()}`;
     const newUserId = `user-merch-${Date.now()}`;
+    const storeCode = `STR-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const rawSlug = (data.store_name_en || data.store_name_ar || `store_${Date.now()}`)
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '_')
+      .slice(0, 16);
+    const generatedUsername = `${rawSlug || 'store'}_${Math.floor(100 + Math.random() * 900)}`;
+    const generatedPassword = `CM@${Math.floor(1000 + Math.random() * 9000)}`;
 
     // Requirement 7: Even if token exists, new stores start as pending until admin approves
     const storeStatus: Store['status'] = 'pending';
 
     const newStore: Store = {
       id: newStoreId,
+      store_code: storeCode,
       owner_id: newUserId,
       name_en: (data.store_name_en || data.store_name_ar).trim(),
       name_ar: (data.store_name_ar || data.store_name_en).trim(),
@@ -523,6 +660,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       contact_phone: data.phone.trim(),
       status: storeStatus,
       is_demo: false,
+      views_count: 0,
       created_at: new Date().toISOString(),
     };
 
@@ -534,6 +672,9 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       role: 'merchant',
       faculty_location_id: 'loc-main',
       store_id: newStoreId,
+      username: generatedUsername,
+      password: generatedPassword,
+      must_change_password: true,
       is_active: true,
       created_at: new Date().toISOString(),
     };
@@ -1380,9 +1521,100 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const adminChangeStoreStatus = (storeId: string, status: Store['status']) => {
     if (!isAdmin) return;
-    setStores((prev) => prev.map((s) => (s.id === storeId ? { ...s, status } : s)));
+    setStores((prev) =>
+      prev.map((s) => {
+        if (s.id !== storeId) return s;
+        const storeCode = s.store_code || `STR-${Math.floor(1000 + Math.random() * 9000)}`;
+        return { ...s, status, store_code: storeCode };
+      })
+    );
+    if (status === 'active') {
+      const store = stores.find((s) => s.id === storeId);
+      if (store) {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === store.owner_id || u.store_id === storeId
+              ? { ...u, is_active: true }
+              : u
+          )
+        );
+      }
+    }
     logAudit('تغيير حالة متجر', 'store', storeId, `تغيير الحالة إلى ${status}`);
     showToast(status === 'active' ? 'تم قبول واعتماد المتجر بنجاح' : 'تم تحديث حالة المتجر');
+  };
+
+  const adminIssueMerchantCredentials = (storeId: string) => {
+    if (!isAdmin) return { success: false, error: 'غير مصرح' };
+    const store = stores.find((s) => s.id === storeId);
+    if (!store) return { success: false, error: 'المتجر غير موجود' };
+    const owner = users.find((u) => u.id === store.owner_id || u.store_id === storeId);
+
+    const storeCode = store.store_code || `STR-${Math.floor(1000 + Math.random() * 9000)}`;
+    const baseSlug = (store.slug || store.name_en || 'store')
+      .replace(/[^a-zA-Z0-9_]/g, '_')
+      .toLowerCase();
+    const username = owner?.username || `${baseSlug}_${Math.floor(100 + Math.random() * 900)}`;
+    const tempPassword = `CM@${Math.floor(1000 + Math.random() * 9000)}`;
+
+    if (!store.store_code) {
+      setStores((prev) =>
+        prev.map((s) => (s.id === storeId ? { ...s, store_code: storeCode } : s))
+      );
+    }
+
+    if (owner) {
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === owner.id
+            ? {
+                ...u,
+                username,
+                password: tempPassword,
+                must_change_password: true,
+                role: 'merchant',
+                store_id: storeId,
+                is_active: true,
+              }
+            : u
+        )
+      );
+    } else {
+      const newOwner: User = {
+        id: `user-merch-${Date.now()}`,
+        email: `${username}@campusmarket.ly`,
+        phone: store.contact_phone || '0910000000',
+        full_name: store.name_ar,
+        role: 'merchant',
+        faculty_location_id: 'loc-main',
+        store_id: storeId,
+        username,
+        password: tempPassword,
+        must_change_password: true,
+        is_active: true,
+        created_at: new Date().toISOString(),
+      };
+      setUsers((prev) => [...prev, newOwner]);
+    }
+
+    logAudit(
+      'إصدار بيانات دخول تاجر',
+      'store',
+      storeId,
+      `تم إصدار بيانات دخول للمتجر ${store.name_ar} (المستخدم: ${username})`
+    );
+    showToast(`تم تجهيز بيانات دخول المتجر: ${username}`, 'success');
+
+    return {
+      success: true,
+      credentials: {
+        storeName: store.name_ar,
+        storeCode,
+        username,
+        tempPassword,
+        loginUrl: 'https://7ij0d.github.io/campus-market/#/merchant-login',
+      },
+    };
   };
 
   const adminDeleteStore = (storeId: string) => {
@@ -1514,6 +1746,9 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         currentUser,
         users,
         loginByEmail,
+        merchantLogin,
+        merchantChangePassword,
+        adminIssueMerchantCredentials,
         switchQuickAccount,
         registerCustomer,
         registerMerchantByInvite,
