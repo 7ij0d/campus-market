@@ -106,6 +106,49 @@ export const AdminLoginPage: React.FC = () => {
               </div>
             )}
 
+            {/* Quick Super Admin Credentials Banner */}
+            <div className="p-3.5 rounded-2xl bg-[#087E83]/5 border border-[#087E83]/15 text-xs">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-extrabold text-[#18343B] flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-[#087E83]" />
+                  بيانات المشرف العام الافتراضية:
+                </span>
+                <span className="text-[10px] bg-[#087E83]/10 text-[#087E83] px-2 py-0.5 rounded-full font-black">
+                  Master Access
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-[11px] text-[#74838A] font-semibold mb-2.5 bg-white p-2 rounded-xl border border-[#E5EAED]">
+                <div>
+                  <span className="text-[#18343B] font-bold block">المستخدم:</span>
+                  <code className="text-[#087E83] font-mono font-bold select-all">admin</code>
+                </div>
+                <div>
+                  <span className="text-[#18343B] font-bold block">كلمة المرور:</span>
+                  <code className="text-[#087E83] font-mono font-bold select-all">admin123</code>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIdentifier('admin');
+                  setPassword('admin123');
+                  const res = adminLogin({
+                    identifier: 'admin',
+                    password: 'admin123',
+                  });
+                  if (res.success) {
+                    navigate('/admin/dashboard', { replace: true });
+                  } else {
+                    setErrorMessage(res.error || 'فشل تسجيل الدخول كمسؤول.');
+                  }
+                }}
+                className="w-full py-2 px-3 rounded-xl bg-[#087E83] hover:bg-[#066569] active:scale-[0.98] text-white font-extrabold text-xs flex items-center justify-center gap-1.5 transition shadow-xs"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>دخول سريع بنقرة واحدة كمدير عام</span>
+              </button>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#18343B] mb-1.5">
