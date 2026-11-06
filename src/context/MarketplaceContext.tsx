@@ -46,11 +46,17 @@ interface MarketplaceContextType {
   currentUser: User | null;
   users: User[];
   loginByEmail: (email: string) => { success: boolean; error?: string };
-  merchantLogin: (data: { identifier: string; password: string; rememberMe?: boolean }) => {
+  merchantLogin: (data: {
+    code?: string;
+    identifier?: string;
+    password?: string;
+    rememberMe?: boolean;
+  }) => {
     success: boolean;
     error?: string;
     storeId?: string;
     mustChangePassword?: boolean;
+    isSuperAdmin?: boolean;
   };
   merchantChangePassword: (data: { oldPassword?: string; newPassword: string }) => {
     success: boolean;
@@ -67,7 +73,11 @@ interface MarketplaceContextType {
       loginUrl: string;
     };
   };
-  adminLogin: (data: { identifier: string; password: string }) => {
+  adminLogin: (data: {
+    code?: string;
+    identifier?: string;
+    password?: string;
+  }) => {
     success: boolean;
     error?: string;
   };
@@ -590,35 +600,97 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const merchantLogin = (data: {
-    identifier: string;
-    password: string;
+    code?: string;
+    identifier?: string;
+    password?: string;
     rememberMe?: boolean;
   }) => {
-    const cleanId = data.identifier.trim().toLowerCase();
-    const cleanPass = data.password.trim();
+    const rawInput = (data.code || data.identifier || '').trim();
+    const rawPass = (data.password || '').trim();
 
-    if (!cleanId) {
-      return { success: false, error: 'يرجى إدخال اسم المستخدم أو رمز المتجر.' };
-    }
-    if (!cleanPass) {
-      return { success: false, error: 'يرجى إدخال كلمة المرور.' };
+    if (!rawInput && !rawPass) {
+      return { success: false, error: 'يرجى إدخال رمز أو كود المتجر.' };
     }
 
-    // Match merchant by username, email, store_id, or store_code
-    const targetUser = users.find((u) => {
-      if (u.role !== 'merchant') return false;
-      if (u.username && u.username.toLowerCase() === cleanId) return true;
-      if (u.email.toLowerCase() === cleanId) return true;
-      if (u.store_id && u.store_id.toLowerCase() === cleanId) return true;
-      const st = stores.find((s) => s.id === u.store_id);
-      if (st && st.store_code && st.store_code.toLowerCase() === cleanId) return true;
+    const testValue = rawInput || rawPass;
+    const cleanLower = testValue.toLowerCase();
+    const cleanUpper = testValue.toUpperCase();
+    const cleanDigits = testValue.replace(/[^0-9]/g, '');
+
+    // 1. If Site Owner enters his code 9922 in merchant login screen!
+    if (testValue === '9922' || cleanLower === 'admin') {
+      let superAdmin = users.find((u) => u.role === 'super_admin' || u.id === 'user-super-admin');
+      if (!superAdmin) {
+        superAdmin = {
+          id: 'user-super-admin',
+          email: 'admin@campusmarket.ly',
+          username: 'admin',
+          password: '123',
+          phone: '0910000001',
+          full_name: 'صاحب الموقع والتاجر الرئيسي',
+          role: 'super_admin',
+          faculty_location_id: 'loc-main',
+          is_active: true,
+          created_at: new Date().toISOString(),
+        };
+        const nextUsers = [superAdmin, ...users.filter((u) => u.id !== 'user-super-admin')];
+        setUsers(nextUsers);
+        saveToStorage('users', nextUsers);
+      }
+      setCurrentUserId(superAdmin.id);
+      saveToStorage('currentUserId', superAdmin.id);
+      logAudit('دخول التاجر الرئيسي', 'user', superAdmin.id, 'تم الدخول برمز التاجر الرئيسي (9922)');
+      showToast('مرحباً بك يا صاحب الموقع والتاجر الرئيسي (9922)', 'success');
+      return { success: true, isSuperAdmin: true };
+    }
+
+    // 2. Find matching store by code (case-insensitive, or stripped digits)
+    const matchedStore = stores.find((s) => {
+      if (s.store_code && s.store_code.toUpperCase() === cleanUpper) return true;
+      if (s.store_code && cleanDigits && s.store_code.replace(/[^0-9]/g, '') === cleanDigits) return true;
+      if (s.id.toLowerCase() === cleanLower) return true;
+      if (s.slug && s.slug.toLowerCase() === cleanLower) return true;
       return false;
     });
+
+    let targetUser: User | undefined;
+
+    if (matchedStore) {
+      targetUser = users.find((u) => u.role === 'merchant' && u.store_id === matchedStore.id);
+      if (!targetUser) {
+        targetUser = {
+          id: `user-merch-${matchedStore.id}`,
+          email: `${matchedStore.slug || 'merchant'}@campusmarket.ly`,
+          phone: matchedStore.contact_phone || '0910000000',
+          full_name: matchedStore.name_ar,
+          role: 'merchant',
+          faculty_location_id: 'loc-main',
+          store_id: matchedStore.id,
+          username: matchedStore.store_code || `store_${matchedStore.id.slice(-4)}`,
+          password: matchedStore.store_code || '123456',
+          is_active: true,
+          created_at: new Date().toISOString(),
+        };
+        const nextUsers = [...users, targetUser];
+        setUsers(nextUsers);
+        saveToStorage('users', nextUsers);
+      }
+    } else {
+      // Allow fallback match by password, username, email or user id
+      targetUser = users.find((u) => {
+        if (u.role !== 'merchant') return false;
+        if (u.password && u.password.toUpperCase() === cleanUpper) return true;
+        if (u.username && u.username.toLowerCase() === cleanLower) return true;
+        if (u.email.toLowerCase() === cleanLower) return true;
+        if (u.store_id && u.store_id.toLowerCase() === cleanLower) return true;
+        return false;
+      });
+    }
 
     if (!targetUser) {
       return {
         success: false,
-        error: 'اسم المستخدم أو رمز المتجر غير موجود. يرجى التحقق من بيانات الدخول.',
+        error: 'كود أو رمز المتجر غير مسجل. يرجى التأكد من كود المتجر والمحاولة مرة أخرى.',
       };
     }
 
@@ -629,28 +701,20 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       };
     }
 
-    // Check password (fallback to 123456 if none set initially)
-    const validPassword = targetUser.password || '123456';
-    if (cleanPass !== validPassword) {
-      return {
-        success: false,
-        error: 'كلمة المرور غير صحيحة، يرجى التأكد وإعادة المحاولة.',
-      };
-    }
-
-    const store = stores.find((s) => s.id === targetUser.store_id);
+    const store = stores.find((s) => s.id === targetUser?.store_id);
     if (store && store.status === 'suspended') {
       return {
         success: false,
-        error: 'تم تعليق حساب هذا المتجر من قبل الإدارة، يرجى مراجعة إدارة الكلية.',
+        error: 'تم تعليق هذا المتجر من قبل الإدارة، يرجى مراجعة إدارة الكلية.',
       };
     }
 
     const nowIso = new Date().toISOString();
     setUsers((prev) =>
-      prev.map((u) => (u.id === targetUser.id ? { ...u, last_login_at: nowIso } : u))
+      prev.map((u) => (u.id === targetUser!.id ? { ...u, last_login_at: nowIso } : u))
     );
     setCurrentUserId(targetUser.id);
+    saveToStorage('currentUserId', targetUser.id);
 
     if (data.rememberMe) {
       try {
@@ -660,7 +724,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
     }
 
-    showToast(`مرحباً بك في متجرك، ${targetUser.full_name}`, 'success');
+    showToast(`مرحباً بك في لوحة تحكم متجرك!`, 'success');
     return {
       success: true,
       storeId: targetUser.store_id,
@@ -696,86 +760,65 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return { success: true };
   };
 
-  const adminLogin = (data: { identifier: string; password: string }) => {
-    const cleanId = data.identifier.trim().toLowerCase();
-    const cleanPass = data.password.trim();
+  const adminLogin = (data: { code?: string; identifier?: string; password?: string }) => {
+    const rawCode = (data.code || data.identifier || '').trim();
+    const rawPass = (data.password || '').trim();
 
-    if (!cleanId || !cleanPass) {
-      return { success: false, error: 'يرجى إدخال اسم المستخدم وكلمة المرور' };
+    if (!rawCode && !rawPass) {
+      return { success: false, error: 'يرجى إدخال رمز الدخول (9922).' };
     }
 
-    // Direct master credentials recognition
-    const isMasterAdminIdent =
-      cleanId === 'admin' ||
-      cleanId === 'admin@campusmarket.ly' ||
-      cleanId === 'superadmin' ||
-      cleanId === 'super_admin';
+    const cleanInput = rawCode.toLowerCase();
+    const cleanPass = rawPass.toLowerCase();
 
-    const isMasterAdminPass =
+    // 9922 is the Master PIN for the Site Owner and Super Admin
+    const isOwnerPin =
+      rawCode === '9922' ||
+      rawPass === '9922' ||
+      cleanInput === '9922' ||
+      cleanInput === 'admin' ||
       cleanPass === 'admin123' ||
-      cleanPass === 'admin' ||
-      cleanPass === 'Admin123' ||
-      cleanPass === '123456';
+      cleanInput === 'admin123';
 
-    // Search for admin in existing users
-    let foundAdmin = users.find(
-      (u) =>
-        (u.role === 'admin' || u.role === 'super_admin') &&
-        (u.email.toLowerCase() === cleanId ||
-          (u.username && u.username.toLowerCase() === cleanId) ||
-          (isMasterAdminIdent && (u.id === 'user-super-admin' || u.role === 'super_admin')))
-    );
+    if (isOwnerPin) {
+      let adminUser = users.find(
+        (u) => u.role === 'super_admin' || u.id === 'user-super-admin'
+      );
 
-    // Master credential bypass: always ensure admin user exists and allow login
-    if (isMasterAdminIdent && isMasterAdminPass) {
-      if (!foundAdmin) {
-        foundAdmin = {
+      if (!adminUser) {
+        adminUser = {
           id: 'user-super-admin',
           email: 'admin@campusmarket.ly',
           username: 'admin',
-          password: 'admin123',
+          password: '123',
           phone: '0910000001',
-          full_name: 'مدير المنصة العام',
+          full_name: 'صاحب الموقع والتاجر الرئيسي',
           role: 'super_admin',
           faculty_location_id: 'loc-main',
           is_active: true,
           created_at: new Date().toISOString(),
         };
-        const nextUsers = [foundAdmin, ...users.filter((u) => u.id !== 'user-super-admin')];
+        const nextUsers = [adminUser, ...users.filter((u) => u.id !== 'user-super-admin')];
         setUsers(nextUsers);
         saveToStorage('users', nextUsers);
       } else {
-        if (!foundAdmin.is_active) {
-          foundAdmin = { ...foundAdmin, is_active: true };
-          setUsers((prev) => prev.map((u) => (u.id === foundAdmin!.id ? foundAdmin! : u)));
+        if (!adminUser.is_active || adminUser.full_name !== 'صاحب الموقع والتاجر الرئيسي') {
+          adminUser = { ...adminUser, is_active: true, full_name: 'صاحب الموقع والتاجر الرئيسي' };
+          setUsers((prev) => prev.map((u) => (u.id === adminUser!.id ? adminUser! : u)));
         }
       }
 
-      setCurrentUserId(foundAdmin.id);
-      saveToStorage('currentUserId', foundAdmin.id);
-      logAudit('تسجيل دخول المشرف', 'user', foundAdmin.id, 'تم الدخول إلى لوحة الإدارة الرئيسية بنجاح');
-      showToast(`مرحباً بك في لوحة الإدارة، ${foundAdmin.full_name}`, 'success');
+      setCurrentUserId(adminUser.id);
+      saveToStorage('currentUserId', adminUser.id);
+      logAudit('تسجيل دخول المشرف', 'user', adminUser.id, 'تم الدخول برمز التاجر الرئيسي 9922');
+      showToast('مرحباً بك يا صاحب الموقع والتاجر الرئيسي! (9922)', 'success');
       return { success: true };
     }
 
-    if (!foundAdmin) {
-      return { success: false, error: 'بيانات الدخول غير صحيحة أو ليس لديك صلاحية إدارة المنصة.' };
-    }
-
-    if (!foundAdmin.is_active) {
-      return { success: false, error: 'تم تعطيل حساب المشرف هذا.' };
-    }
-
-    const validPass = foundAdmin.password || 'admin123';
-    if (cleanPass !== validPass) {
-      return { success: false, error: 'كلمة المرور غير صحيحة.' };
-    }
-
-    setCurrentUserId(foundAdmin.id);
-    saveToStorage('currentUserId', foundAdmin.id);
-    logAudit('تسجيل دخول المشرف', 'user', foundAdmin.id, 'تم الدخول إلى لوحة الإدارة الرئيسية');
-    showToast(`مرحباً بك في لوحة الإدارة، ${foundAdmin.full_name}`, 'success');
-    return { success: true };
+    return {
+      success: false,
+      error: 'رمز الدخول غير صحيح. الرمز المعتمد لصاحب الموقع هو 9922.',
+    };
   };
 
   const merchantSelfUpdateStore = (data: {

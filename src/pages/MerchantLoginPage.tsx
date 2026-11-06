@@ -14,6 +14,8 @@ import {
   X,
   PhoneCall,
   CheckCircle2,
+  KeyRound,
+  ShieldCheck,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
 
@@ -21,9 +23,7 @@ export const MerchantLoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser, merchantLogin, stores } = useMarketplace();
 
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [storeCode, setStoreCode] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,6 +33,8 @@ export const MerchantLoginPage: React.FC = () => {
   useEffect(() => {
     if (currentUser && currentUser.role === 'merchant' && currentUser.store_id) {
       navigate('/merchant', { replace: true });
+    } else if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
+      navigate('/admin/dashboard', { replace: true });
     }
   }, [currentUser, navigate]);
 
@@ -40,27 +42,26 @@ export const MerchantLoginPage: React.FC = () => {
     e.preventDefault();
     setErrorMessage('');
 
-    if (!identifier.trim()) {
-      setErrorMessage('يرجى إدخال اسم المستخدم أو رمز المتجر.');
-      return;
-    }
-    if (!password.trim()) {
-      setErrorMessage('يرجى إدخال كلمة المرور.');
+    if (!storeCode.trim()) {
+      setErrorMessage('يرجى إدخال رمز أو كود المتجر.');
       return;
     }
 
     setIsSubmitting(true);
     try {
       const res = merchantLogin({
-        identifier: identifier.trim(),
-        password: password.trim(),
+        code: storeCode.trim(),
         rememberMe,
       });
 
       if (res.success) {
-        navigate('/merchant', { replace: true });
+        if (res.isSuperAdmin) {
+          navigate('/admin/dashboard', { replace: true });
+        } else {
+          navigate('/merchant', { replace: true });
+        }
       } else {
-        setErrorMessage(res.error || 'فشل تسجيل الدخول. يرجى التأكد من البيانات.');
+        setErrorMessage(res.error || 'فشل تسجيل الدخول. يرجى التأكد من كود المتجر.');
       }
     } finally {
       setIsSubmitting(false);
@@ -158,60 +159,37 @@ export const MerchantLoginPage: React.FC = () => {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Identifier Input (Username or Store ID) */}
+              {/* Single Store Code Input */}
               <div>
-                <label className="block text-xs font-bold text-[#18343B] mb-1.5">
-                  اسم المستخدم أو رمز المتجر
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-[#18343B]">
+                    رمز أو كود المتجر
+                  </label>
+                  <span className="text-[10px] text-[#087E83] font-extrabold bg-[#087E83]/10 px-2 py-0.5 rounded-full">
+                    دخول سريع بدون يوزر
+                  </span>
+                </div>
                 <div className="relative">
                   <input
                     type="text"
                     required
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="مثال: store_lama أو STR-104"
+                    value={storeCode}
+                    onChange={(e) => setStoreCode(e.target.value)}
+                    placeholder="مثال: STR-1001 أو رمزك الخاص"
                     dir="ltr"
-                    className="w-full h-12 pr-11 pl-4 rounded-2xl border border-[#E5EAED] bg-[#F8FAFC] focus:bg-white focus:border-[#087E83] focus:ring-2 focus:ring-[#087E83]/20 text-xs sm:text-sm font-semibold text-[#18343B] transition outline-none"
+                    autoFocus
+                    className="w-full h-13 pr-11 pl-4 rounded-2xl border border-[#E5EAED] bg-[#F8FAFC] focus:bg-white focus:border-[#087E83] focus:ring-2 focus:ring-[#087E83]/20 text-sm sm:text-base font-extrabold text-[#18343B] text-center tracking-wider transition outline-none"
                   />
                   <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#74838A] pointer-events-none">
-                    <UserIcon className="w-5 h-5 stroke-[1.9]" />
+                    <KeyRound className="w-5 h-5 stroke-[1.9] text-[#087E83]" />
                   </div>
                 </div>
+                <p className="text-[11px] text-[#74838A] mt-1.5 font-medium leading-relaxed">
+                  اكتب كود المتجر الخاص بك للدخول المباشر إلى لوحة التحكم فوراً.
+                </p>
               </div>
 
-              {/* Password Input */}
-              <div>
-                <label className="block text-xs font-bold text-[#18343B] mb-1.5">
-                  كلمة المرور
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    dir="ltr"
-                    className="w-full h-12 pr-11 pl-11 rounded-2xl border border-[#E5EAED] bg-[#F8FAFC] focus:bg-white focus:border-[#087E83] focus:ring-2 focus:ring-[#087E83]/20 text-xs sm:text-sm font-semibold text-[#18343B] transition outline-none"
-                  />
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#74838A] pointer-events-none">
-                    <Lock className="w-5 h-5 stroke-[1.9]" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#74838A] hover:text-[#18343B] transition"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Remember Me & Forgot Password Row */}
+              {/* Remember Me & Help Row */}
               <div className="flex items-center justify-between pt-1 text-xs">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
@@ -220,7 +198,7 @@ export const MerchantLoginPage: React.FC = () => {
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 rounded-md text-[#087E83] border-[#E5EAED] focus:ring-[#087E83]"
                   />
-                  <span className="font-bold text-[#18343B]">تذكّرني</span>
+                  <span className="font-bold text-[#18343B]">تذكّرني على هذا الجهاز</span>
                 </label>
 
                 <button
@@ -228,7 +206,7 @@ export const MerchantLoginPage: React.FC = () => {
                   onClick={() => setShowForgotModal(true)}
                   className="font-bold text-[#087E83] hover:underline"
                 >
-                  نسيت كلمة المرور؟
+                  نسيت رمز المتجر؟
                 </button>
               </div>
 
@@ -243,7 +221,7 @@ export const MerchantLoginPage: React.FC = () => {
                 ) : (
                   <>
                     <LogIn className="w-4 h-4 stroke-[2.2]" />
-                    <span>تسجيل الدخول</span>
+                    <span>تسجيل الدخول إلى المتجر</span>
                   </>
                 )}
               </button>

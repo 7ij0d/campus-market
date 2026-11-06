@@ -10,6 +10,7 @@ import {
   AlertCircle,
   GraduationCap,
   ArrowRight,
+  KeyRound,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
 
@@ -17,9 +18,7 @@ export const AdminLoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser, adminLogin } = useMarketplace();
 
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [adminCode, setAdminCode] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -37,26 +36,21 @@ export const AdminLoginPage: React.FC = () => {
     e.preventDefault();
     setErrorMessage('');
 
-    if (!identifier.trim()) {
-      setErrorMessage('يرجى إدخال اسم المستخدم أو البريد الإلكتروني.');
-      return;
-    }
-    if (!password.trim()) {
-      setErrorMessage('يرجى إدخال كلمة المرور.');
+    if (!adminCode.trim()) {
+      setErrorMessage('يرجى إدخال رمز الدخول (9922).');
       return;
     }
 
     setIsSubmitting(true);
     try {
       const res = adminLogin({
-        identifier: identifier.trim(),
-        password: password.trim(),
+        code: adminCode.trim(),
       });
 
       if (res.success) {
         navigate('/admin/dashboard', { replace: true });
       } else {
-        setErrorMessage(res.error || 'فشل تسجيل الدخول كمسؤول.');
+        setErrorMessage(res.error || 'رمز الدخول غير صحيح.');
       }
     } finally {
       setIsSubmitting(false);
@@ -90,10 +84,10 @@ export const AdminLoginPage: React.FC = () => {
             </div>
 
             <h1 className="text-xl sm:text-2xl font-black">
-              دخول إدارة المنصة
+              دخول التاجر الرئيسي والمشرف العام
             </h1>
             <p className="text-xs text-[#B9DDE0] mt-1 font-medium">
-              لوحة التحكم الرئيسية للمسؤول والمصمم
+              لوحة التحكم المركزية لصاحب المنصة والمشرف
             </p>
           </div>
 
@@ -106,99 +100,60 @@ export const AdminLoginPage: React.FC = () => {
               </div>
             )}
 
-            {/* Quick Super Admin Credentials Banner */}
-            <div className="p-3.5 rounded-2xl bg-[#087E83]/5 border border-[#087E83]/15 text-xs">
+            {/* Quick Master PIN Banner */}
+            <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] text-xs">
               <div className="flex items-center justify-between mb-2">
                 <span className="font-extrabold text-[#18343B] flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-[#087E83]" />
-                  بيانات المشرف العام الافتراضية:
+                  <ShieldCheck className="w-4 h-4 text-[#F3C95B]" />
+                  رمز دخول صاحب الموقع المعتمد:
                 </span>
-                <span className="text-[10px] bg-[#087E83]/10 text-[#087E83] px-2 py-0.5 rounded-full font-black">
-                  Master Access
+                <span className="text-[11px] bg-[#18343B] text-white px-2.5 py-0.5 rounded-full font-mono font-black">
+                  9922
                 </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-[11px] text-[#74838A] font-semibold mb-2.5 bg-white p-2 rounded-xl border border-[#E5EAED]">
-                <div>
-                  <span className="text-[#18343B] font-bold block">المستخدم:</span>
-                  <code className="text-[#087E83] font-mono font-bold select-all">admin</code>
-                </div>
-                <div>
-                  <span className="text-[#18343B] font-bold block">كلمة المرور:</span>
-                  <code className="text-[#087E83] font-mono font-bold select-all">admin123</code>
-                </div>
               </div>
               <button
                 type="button"
                 onClick={() => {
-                  setIdentifier('admin');
-                  setPassword('admin123');
+                  setAdminCode('9922');
                   const res = adminLogin({
-                    identifier: 'admin',
-                    password: 'admin123',
+                    code: '9922',
                   });
                   if (res.success) {
                     navigate('/admin/dashboard', { replace: true });
                   } else {
-                    setErrorMessage(res.error || 'فشل تسجيل الدخول كمسؤول.');
+                    setErrorMessage(res.error || 'فشل تسجيل الدخول.');
                   }
                 }}
-                className="w-full py-2 px-3 rounded-xl bg-[#087E83] hover:bg-[#066569] active:scale-[0.98] text-white font-extrabold text-xs flex items-center justify-center gap-1.5 transition shadow-xs"
+                className="w-full py-2.5 px-3 rounded-xl bg-[#087E83] hover:bg-[#066569] active:scale-[0.98] text-white font-extrabold text-xs flex items-center justify-center gap-1.5 transition shadow-xs"
               >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>دخول سريع بنقرة واحدة كمدير عام</span>
+                <LogIn className="w-4 h-4" />
+                <span>دخول مباشر بالرمز (9922)</span>
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#18343B] mb-1.5">
-                  اسم المستخدم أو البريد الإداري
+                  أدخل رمز الدخول (PIN Code)
                 </label>
                 <div className="relative">
                   <input
-                    type="text"
+                    type="password"
                     required
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="admin أو admin@campusmarket.ly"
+                    value={adminCode}
+                    onChange={(e) => setAdminCode(e.target.value)}
+                    placeholder="9922"
                     dir="ltr"
-                    className="w-full h-12 pr-11 pl-4 rounded-2xl border border-[#E5EAED] bg-[#F8FAFC] focus:bg-white focus:border-[#18343B] focus:ring-2 focus:ring-[#18343B]/20 text-xs sm:text-sm font-semibold text-[#18343B] transition outline-none"
+                    autoFocus
+                    className="w-full h-13 pr-11 pl-4 rounded-2xl border border-[#E5EAED] bg-[#F8FAFC] focus:bg-white focus:border-[#18343B] focus:ring-2 focus:ring-[#18343B]/20 text-base font-extrabold text-center tracking-widest text-[#18343B] transition outline-none"
                   />
                   <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#74838A] pointer-events-none">
-                    <UserIcon className="w-5 h-5" />
+                    <KeyRound className="w-5 h-5 text-[#18343B]" />
                   </div>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#18343B] mb-1.5">
-                  كلمة مرور الإدارة
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    dir="ltr"
-                    className="w-full h-12 pr-11 pl-11 rounded-2xl border border-[#E5EAED] bg-[#F8FAFC] focus:bg-white focus:border-[#18343B] focus:ring-2 focus:ring-[#18343B]/20 text-xs sm:text-sm font-semibold text-[#18343B] transition outline-none"
-                  />
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#74838A] pointer-events-none">
-                    <Lock className="w-5 h-5" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#74838A] hover:text-[#18343B] transition"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
+                <p className="text-[11px] text-[#74838A] mt-1.5 text-center font-medium">
+                  رمز صاحب الموقع هو <strong className="text-[#087E83] font-mono">9922</strong> بدون الحاجة لاسم مستخدم أو بريد.
+                </p>
               </div>
 
               <button
@@ -211,7 +166,7 @@ export const AdminLoginPage: React.FC = () => {
                 ) : (
                   <>
                     <ShieldCheck className="w-4 h-4 text-[#F3C95B]" />
-                    <span>دخول لوحة الإدارة الرئيسية</span>
+                    <span>تأكيد الرمز والدخول إلى لوحة الإدارة</span>
                   </>
                 )}
               </button>

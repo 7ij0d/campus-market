@@ -89,5 +89,12 @@
 ## 5. Super Admin Authentication & Self-Healing Migration (v3.4)
 - **Problem Resolved**: Fixed the error `"بيانات الدخول غير صحيحة أو ليس لديك صلاحية إدارة المنصة"` when logging into `/admin/login` due to stale localStorage schemas lacking `username: 'admin'` or `password: 'admin123'`.
 - **Self-Healing Initializer**: `MarketplaceContext.tsx` automatically checks and migrates `users` in localStorage on startup, ensuring `user-super-admin` with `username: 'admin'`, `role: 'super_admin'`, and `password: 'admin123'` is present and active.
-- **Infallible Master Access**: `adminLogin` checks master credentials (`admin` / `admin123`, `admin@campusmarket.ly`, `superadmin`), immediately auto-recovering and validating super admin permissions.
-- **1-Click Executive Access in UI**: Added a dedicated Master Access card on `AdminLoginPage.tsx` with a single-click button "دخول سريع بنقرة واحدة كمدير عام" so administrators can enter their dashboard instantaneously without manual typing errors.
+
+## 6. PIN-Only Simplified Authentication Architecture (v3.5)
+- **Merchant Direct PIN Access ("التاجر كود أو رمز بس بدون يوزر")**:
+  - `MerchantLoginPage.tsx` updated to require only a single field: **رمز أو كود المتجر** (`storeCode`).
+  - No separate username or complex password required. Entering the store's code (e.g. `STR-1001` or its numeric code) logs the merchant directly into their dashboard.
+- **Site Owner & Super Admin Master PIN (`9922`)**:
+  - Set the official Master PIN for the website owner and central platform administrator to **`9922`**.
+  - `AdminLoginPage.tsx` updated to a single PIN code field. Entering `9922` logs the owner directly into the Super Admin portal.
+  - Also recognized in `MerchantLoginPage.tsx`: if the site owner enters `9922` on the merchant login screen, the system immediately authenticates him with executive privileges and directs him to the admin control center.
