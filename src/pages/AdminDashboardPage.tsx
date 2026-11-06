@@ -21,6 +21,19 @@ import {
   CheckCircle2,
   XCircle,
   X,
+  LogIn,
+  ExternalLink,
+  RefreshCw,
+  Search,
+  Sliders,
+  Check,
+  UserCheck,
+  Camera,
+  Image as ImageIcon,
+  Lock,
+  Phone,
+  Mail,
+  User,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
 import { STATUS_META } from './OrdersPage';
@@ -59,6 +72,10 @@ export const AdminDashboardPage: React.FC = () => {
     adminCreateOrUpdateStore,
     adminChangeStoreStatus,
     adminIssueMerchantCredentials,
+    adminFullUpdateStoreAndMerchant,
+    adminDirectCreateStoreAndMerchant,
+    adminImpersonateStore,
+    getStoreMerchantUser,
     adminDeleteStore,
     adminToggleProductVisibility,
     saveMerchantProduct,
@@ -82,6 +99,122 @@ export const AdminDashboardPage: React.FC = () => {
   const [editingStore, setEditingStore] = useState<
     (Partial<Store> & { id?: string }) | null
   >(null);
+
+  // Store Search & Status Filters for Super Admin
+  const [storeSearchQuery, setStoreSearchQuery] = useState('');
+  const [storeStatusFilter, setStoreStatusFilter] = useState<'all' | 'active' | 'pending' | 'suspended'>('all');
+
+  // Comprehensive Store & Merchant Full Edit Modal State
+  const [editingStoreFull, setEditingStoreFull] = useState<{
+    storeId: string;
+    name_ar: string;
+    name_en: string;
+    activity_type_ar: string;
+    description_ar: string;
+    location_inside_campus: string;
+    contact_phone: string;
+    category_id: string;
+    logo_url: string;
+    cover_url: string;
+    store_code: string;
+    status: Store['status'];
+    visibility_status: 'active' | 'pause_orders' | 'closed_temp' | 'hidden';
+    username: string;
+    new_password: string;
+    owner_full_name: string;
+    owner_email: string;
+    owner_phone: string;
+    is_account_active: boolean;
+  } | null>(null);
+
+  // Direct Store & Merchant Creation Modal State
+  const [isCreatingStoreModal, setIsCreatingStoreModal] = useState(false);
+  const [newStoreForm, setNewStoreForm] = useState({
+    name_ar: '',
+    name_en: '',
+    activity_type_ar: '',
+    description_ar: '',
+    location_inside_campus: 'داخل الكلية',
+    contact_phone: '',
+    category_id: 'cat-services',
+    logo_url: '',
+    cover_url: '',
+    store_code: '',
+    owner_full_name: '',
+    owner_email: '',
+    username: '',
+    password: '',
+    status: 'active' as Store['status'],
+  });
+
+  const openEditStoreFullModal = (st: Store) => {
+    const owner = getStoreMerchantUser(st.id);
+    setEditingStoreFull({
+      storeId: st.id,
+      name_ar: st.name_ar,
+      name_en: st.name_en || st.name_ar,
+      activity_type_ar: st.activity_type_ar || '',
+      description_ar: st.description_ar || '',
+      location_inside_campus: st.location_inside_campus || 'داخل الكلية',
+      contact_phone: st.contact_phone || owner?.phone || '',
+      category_id: st.category_id || 'cat-services',
+      logo_url: st.logo_url || '',
+      cover_url: st.cover_url || '',
+      store_code: st.store_code || '',
+      status: st.status,
+      visibility_status: st.visibility_status || 'active',
+      username: owner?.username || '',
+      new_password: '',
+      owner_full_name: owner?.full_name || st.name_ar,
+      owner_email: owner?.email || '',
+      owner_phone: owner?.phone || st.contact_phone || '',
+      is_account_active: owner?.is_active ?? true,
+    });
+  };
+
+  const handleEditStoreLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingStoreFull) return;
+    try {
+      const dataUrl = await compressImageFile(file, 400, 400, 0.86);
+      setEditingStoreFull({ ...editingStoreFull, logo_url: dataUrl });
+    } catch {
+      showToast('تعذر قراءة الصورة المصغرة', 'error');
+    }
+  };
+
+  const handleEditStoreCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingStoreFull) return;
+    try {
+      const dataUrl = await compressImageFile(file, 1200, 600, 0.86);
+      setEditingStoreFull({ ...editingStoreFull, cover_url: dataUrl });
+    } catch {
+      showToast('تعذر قراءة صورة البانر', 'error');
+    }
+  };
+
+  const handleNewStoreLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await compressImageFile(file, 400, 400, 0.86);
+      setNewStoreForm((prev) => ({ ...prev, logo_url: dataUrl }));
+    } catch {
+      showToast('تعذر قراءة الصورة المصغرة', 'error');
+    }
+  };
+
+  const handleNewStoreCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await compressImageFile(file, 1200, 600, 0.86);
+      setNewStoreForm((prev) => ({ ...prev, cover_url: dataUrl }));
+    } catch {
+      showToast('تعذر قراءة صورة البانر', 'error');
+    }
+  };
 
   // Issued Merchant Credentials Modal
   const [issuedCredentials, setIssuedCredentials] = useState<{
@@ -169,6 +302,30 @@ export const AdminDashboardPage: React.FC = () => {
     [getPlatformMostOrderedProducts]
   );
 
+  const filteredAdminStores = useMemo(() => {
+    return stores.filter((st) => {
+      if (storeStatusFilter !== 'all') {
+        if (storeStatusFilter === 'active' && st.status !== 'active') return false;
+        if (storeStatusFilter === 'pending' && st.status !== 'pending') return false;
+        if (storeStatusFilter === 'suspended' && (st.status === 'active' || st.status === 'pending'))
+          return false;
+      }
+      if (storeSearchQuery.trim()) {
+        const q = storeSearchQuery.trim().toLowerCase();
+        const owner = getStoreMerchantUser(st.id);
+        const matchName =
+          (st.name_ar && st.name_ar.toLowerCase().includes(q)) ||
+          (st.name_en && st.name_en.toLowerCase().includes(q));
+        const matchCode = st.store_code && st.store_code.toLowerCase().includes(q);
+        const matchUser = owner?.username && owner.username.toLowerCase().includes(q);
+        const matchOwner = owner?.full_name && owner.full_name.toLowerCase().includes(q);
+        const matchPhone = st.contact_phone && st.contact_phone.includes(q);
+        return matchName || matchCode || matchUser || matchOwner || matchPhone;
+      }
+      return true;
+    });
+  }, [stores, storeStatusFilter, storeSearchQuery, users]);
+
   const handleStoreLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !editingStore) return;
@@ -248,24 +405,30 @@ export const AdminDashboardPage: React.FC = () => {
 
           <button
             type="button"
-            onClick={() =>
-              setEditingStore({
+            onClick={() => {
+              setNewStoreForm({
                 name_ar: '',
                 name_en: '',
                 activity_type_ar: '',
                 description_ar: '',
                 location_inside_campus: 'داخل الكلية',
                 contact_phone: '',
+                category_id: categories[0]?.id || 'cat-services',
                 logo_url: '',
                 cover_url: '',
+                store_code: `STR-${Math.floor(1000 + Math.random() * 9000)}`,
+                owner_full_name: '',
+                owner_email: '',
+                username: `store_${Math.floor(100 + Math.random() * 900)}`,
+                password: `CM@${Math.floor(1000 + Math.random() * 9000)}`,
                 status: 'active',
-                is_open: true,
-              })
-            }
-            className="px-4 py-2 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition"
+              });
+              setIsCreatingStoreModal(true);
+            }}
+            className="px-4 py-2 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition active:scale-95"
           >
-            <Plus className="w-4 h-4" />
-            <span>إضافة متجر جديد</span>
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>+ إنشاء متجر وحساب تاجر جديد</span>
           </button>
         </div>
 
@@ -395,111 +558,264 @@ export const AdminDashboardPage: React.FC = () => {
               )}
             </section>
 
+            {/* Super Admin Store Filters & Search Bar */}
+            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#E5EAED] shadow-card space-y-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                  {[
+                    { id: 'all', label: `جميع المتاجر (${stores.length})` },
+                    {
+                      id: 'active',
+                      label: `المعتمدة والنشطة (${
+                        stores.filter((s) => s.status === 'active').length
+                      })`,
+                    },
+                    {
+                      id: 'pending',
+                      label: `طلبات جديدة (${pendingStoresCount})`,
+                    },
+                    {
+                      id: 'suspended',
+                      label: `الموقوفة (${
+                        stores.filter((s) => s.status !== 'active' && s.status !== 'pending')
+                          .length
+                      })`,
+                    },
+                  ].map((filter) => (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      onClick={() =>
+                        setStoreStatusFilter(
+                          filter.id as 'all' | 'active' | 'pending' | 'suspended'
+                        )
+                      }
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap ${
+                        storeStatusFilter === filter.id
+                          ? 'bg-[#087E83] text-white shadow-xs'
+                          : 'bg-[#F8FAFC] text-[#74838A] hover:text-[#18343B] border border-[#E5EAED]'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewStoreForm({
+                      name_ar: '',
+                      name_en: '',
+                      activity_type_ar: '',
+                      description_ar: '',
+                      location_inside_campus: 'داخل الكلية',
+                      contact_phone: '',
+                      category_id: categories[0]?.id || 'cat-services',
+                      logo_url: '',
+                      cover_url: '',
+                      store_code: `STR-${Math.floor(1000 + Math.random() * 9000)}`,
+                      owner_full_name: '',
+                      owner_email: '',
+                      username: `store_${Math.floor(100 + Math.random() * 900)}`,
+                      password: `CM@${Math.floor(1000 + Math.random() * 9000)}`,
+                      status: 'active',
+                    });
+                    setIsCreatingStoreModal(true);
+                  }}
+                  className="px-4 py-2 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-black flex items-center gap-1.5 shadow-xs transition active:scale-95 shrink-0"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                  <span>إضافة متجر وحساب تاجر</span>
+                </button>
+              </div>
+
+              {/* Search Stores Input */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-[#74838A] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={storeSearchQuery}
+                  onChange={(e) => setStoreSearchQuery(e.target.value)}
+                  placeholder="ابحث باسم المتجر، اسم المستخدم، رمز المتجر، رقم الهاتف، أو اسم المالك..."
+                  className="w-full h-11 pr-10 pl-10 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] focus:bg-white focus:border-[#087E83] text-xs sm:text-sm font-semibold outline-none transition"
+                />
+                {storeSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setStoreSearchQuery('')}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#74838A] hover:text-[#18343B]"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* All Stores List (Pending & Active & Suspended) */}
-            {stores.length === 0 ? (
+            {filteredAdminStores.length === 0 ? (
               <div className="bg-white rounded-3xl p-10 text-center space-y-3 border border-[#E5EAED] shadow-card">
                 <StoreIcon className="w-10 h-10 text-[#087E83] mx-auto stroke-[1.7]" />
                 <p className="text-sm font-extrabold text-[#18343B]">
-                  لا توجد متاجر مسجلة حالياً
+                  {storeSearchQuery.trim()
+                    ? 'لا توجد متاجر مطابقة لبحثك'
+                    : 'لا توجد متاجر في هذا التصنيف حالياً'}
                 </p>
                 <p className="text-xs text-[#74838A]">
-                  اضغط على زر "إضافة متجر جديد" في الأعلى لإضافة متجر مع صورته المصغرة وبانره الخاص.
+                  يمكنك الضغط على زر "إضافة متجر وحساب تاجر" لإنشاء متجر وحساب مباشرة.
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {stores.map((st) => (
-                  <div
-                    key={st.id}
-                    className="bg-white rounded-3xl p-4 border border-[#E5EAED] shadow-card space-y-3"
-                  >
-                    {/* Live Store Card Preview */}
-                    <StoreCard store={st} />
+                {filteredAdminStores.map((st) => {
+                  const merchantUser = getStoreMerchantUser(st.id);
+                  const storeProductsCount = products.filter((p) => p.store_id === st.id).length;
+                  const storeOrdersCount = orders.filter((o) => o.store_id === st.id).length;
 
-                    {/* Admin Controls for this Store */}
-                    <div className="pt-2 border-t border-[#E5EAED] flex items-center justify-between flex-wrap gap-2">
-                      <span
-                        className={`text-xs font-extrabold px-3 py-1 rounded-full ${
-                          st.status === 'active'
-                            ? 'bg-emerald-50 text-emerald-700'
+                  return (
+                    <div
+                      key={st.id}
+                      className="bg-white rounded-3xl p-5 border border-[#E5EAED] shadow-card space-y-4 hover:border-[#087E83]/40 transition"
+                    >
+                      {/* Live Store Card Preview */}
+                      <StoreCard store={st} />
+
+                      {/* Store & Linked Merchant Credentials Badge */}
+                      <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] space-y-2 text-xs">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-[#18343B]">رمز المتجر:</span>
+                            <span className="font-mono font-black text-[#087E83] bg-white px-2 py-0.5 rounded-lg border border-[#E5EAED]">
+                              {st.store_code || st.id}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-[#74838A]">حساب التاجر:</span>
+                            <span className="font-mono font-extrabold text-[#18343B] bg-white px-2 py-0.5 rounded-lg border border-[#E5EAED]">
+                              @{merchantUser?.username || 'بدون_حساب'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between flex-wrap gap-2 text-[11px] text-[#74838A] pt-1 border-t border-[#E5EAED]/60">
+                          <div>
+                            المالك: <strong className="text-[#18343B]">{merchantUser?.full_name || st.name_ar}</strong>{' '}
+                            {st.contact_phone ? `(${st.contact_phone})` : ''}
+                          </div>
+                          <div>
+                            المنتجات: <strong className="text-[#087E83]">{storeProductsCount}</strong> • الطلبات: <strong className="text-[#087E83]">{storeOrdersCount}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Admin Controls for this Store */}
+                      <div className="pt-2 border-t border-[#E5EAED] flex items-center justify-between flex-wrap gap-2">
+                        {/* Status Badge */}
+                        <span
+                          className={`text-xs font-extrabold px-3 py-1 rounded-full ${
+                            st.status === 'active'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : st.status === 'pending'
+                              ? 'bg-[#FDF8E7] text-[#18343B] border border-[#F3C95B]'
+                              : 'bg-rose-50 text-rose-600 border border-rose-200'
+                          }`}
+                        >
+                          {st.status === 'active'
+                            ? 'معتمد ونشط'
                             : st.status === 'pending'
-                            ? 'bg-[#FDF8E7] text-[#18343B] border border-[#F3C95B]'
-                            : 'bg-rose-50 text-rose-600'
-                        }`}
-                      >
-                        {st.status === 'active'
-                          ? 'معتمد ويظهر في الرئيسية'
-                          : st.status === 'pending'
-                          ? 'طلب اشتراك جديد (بانتظار الموافقة)'
-                          : 'موقوف / مرفوض'}
-                      </span>
+                            ? 'بانتظار الموافقة'
+                            : 'موقوف / معطل'}
+                        </span>
 
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {st.status !== 'active' && (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {/* Impersonate Button (الدخول كصاحب متجر) */}
                           <button
                             type="button"
                             onClick={() => {
-                              adminChangeStoreStatus(st.id, 'active');
+                              const res = adminImpersonateStore(st.id);
+                              if (res.success) {
+                                navigate('/merchant');
+                              }
+                            }}
+                            className="px-3 py-1.5 rounded-full bg-[#18343B] hover:bg-[#22444C] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-2xs transition active:scale-95"
+                            title="الدخول إلى لوحة هذا المتجر كتاجر وتعديل منتجاته وطلباته"
+                          >
+                            <LogIn className="w-3.5 h-3.5 stroke-[2.2] text-[#F3C95B]" />
+                            <span>دخول كتاجر</span>
+                          </button>
+
+                          {/* Quick Toggle Status */}
+                          {st.status !== 'active' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                adminChangeStoreStatus(st.id, 'active');
+                                const res = adminIssueMerchantCredentials(st.id);
+                                if (res.success && res.credentials) {
+                                  setIssuedCredentials(res.credentials);
+                                }
+                              }}
+                              className="px-3 py-1.5 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold flex items-center gap-1 shadow-2xs transition"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>اعتماد</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => adminChangeStoreStatus(st.id, 'suspended')}
+                              className="px-3 py-1.5 rounded-full bg-[#F8FAFC] border border-[#E5EAED] hover:bg-rose-50 hover:text-rose-600 text-[#74838A] text-xs font-bold flex items-center gap-1 transition"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span>إيقاف</span>
+                            </button>
+                          )}
+
+                          {/* Credentials Button */}
+                          <button
+                            type="button"
+                            onClick={() => {
                               const res = adminIssueMerchantCredentials(st.id);
                               if (res.success && res.credentials) {
                                 setIssuedCredentials(res.credentials);
                               }
                             }}
-                            className="px-3.5 py-1.5 rounded-full bg-[#087E83] text-white text-xs font-extrabold flex items-center gap-1"
+                            className="px-2.5 py-1.5 rounded-full bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-bold flex items-center gap-1"
+                            title="إظهار بيانات الدخول وكلمة المرور"
                           >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>قبول واعتماد</span>
+                            <KeyRound className="w-3.5 h-3.5" />
+                            <span>بيانات الدخول</span>
                           </button>
-                        )}
 
-                        {st.status === 'active' && (
+                          {/* Comprehensive Full Edit Modal Trigger */}
                           <button
                             type="button"
-                            onClick={() => adminChangeStoreStatus(st.id, 'suspended')}
-                            className="px-3 py-1.5 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-[#74838A] text-xs font-bold flex items-center gap-1"
+                            onClick={() => openEditStoreFullModal(st)}
+                            className="p-2 rounded-full bg-[#EAF3F4] hover:bg-[#D5EAE9] text-[#087E83] transition"
+                            title="تعديل شامل لبيانات المتجر واسم المستخدم وكلمة المرور والصور"
                           >
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>إيقاف</span>
+                            <Edit3 className="w-4 h-4 stroke-[2]" />
                           </button>
-                        )}
 
-                        {/* Issue / View Merchant Credentials Button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const res = adminIssueMerchantCredentials(st.id);
-                            if (res.success && res.credentials) {
-                              setIssuedCredentials(res.credentials);
-                            }
-                          }}
-                          className="px-2.5 py-1.5 rounded-full bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-bold flex items-center gap-1"
-                          title="إصدار أو إعادة تعيين كلمة مرور وحساب المتجر"
-                        >
-                          <KeyRound className="w-3.5 h-3.5" />
-                          <span>بيانات الدخول</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setEditingStore(st)}
-                          className="p-2 rounded-full bg-[#EAF3F4] text-[#087E83]"
-                          title="تعديل بيانات وصور المتجر"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => adminDeleteStore(st.id)}
-                          className="p-2 rounded-full bg-rose-50 text-rose-600"
-                          title="حذف المتجر نهائياً"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                          {/* Delete Store */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`هل أنت متأكد من حذف متجر "${st.name_ar}" نهائياً؟`)) {
+                                adminDeleteStore(st.id);
+                              }
+                            }}
+                            className="p-2 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 transition"
+                            title="حذف المتجر نهائياً"
+                          >
+                            <Trash2 className="w-4 h-4 stroke-[2]" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1178,229 +1494,734 @@ export const AdminDashboardPage: React.FC = () => {
         )}
       </main>
 
-      {/* ADD / EDIT STORE MODAL (With Thumbnail, Wide Banner Upload & Live Preview) */}
-      {editingStore && (
-        <div className="fixed inset-0 z-50 bg-[#18343B]/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-xl rounded-3xl p-6 space-y-4 shadow-xl max-h-[92vh] overflow-y-auto border border-[#E5EAED]">
-            <div className="flex items-center justify-between border-b border-[#E5EAED] pb-3">
-              <h3 className="text-base font-extrabold text-[#18343B]">
-                {editingStore.id ? 'تعديل بيانات وصور المتجر' : 'إضافة متجر جديد إلى المنصة'}
-              </h3>
+      {/* SUPER ADMIN COMPREHENSIVE STORE & MERCHANT FULL EDIT MODAL */}
+      {editingStoreFull && (
+        <div className="fixed inset-0 z-50 bg-[#18343B]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white w-full max-w-2xl rounded-[32px] p-5 sm:p-7 space-y-5 shadow-2xl max-h-[92vh] overflow-y-auto border border-[#E5EAED] animate-in zoom-in-95">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-[#E5EAED] pb-3.5">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-[#EAF3F4] text-[#087E83] flex items-center justify-center">
+                  <ShieldCheck className="w-6 h-6 stroke-[2]" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-[#18343B]">
+                    لوحة تحكم المشرف — تعديل المتجر والحساب
+                  </h3>
+                  <p className="text-xs text-[#74838A]">
+                    {editingStoreFull.name_ar} (رمز المتجر: {editingStoreFull.store_code || editingStoreFull.storeId})
+                  </p>
+                </div>
+              </div>
+
               <button
                 type="button"
-                onClick={() => setEditingStore(null)}
-                className="w-8 h-8 rounded-full bg-[#F8FAFC] flex items-center justify-center text-[#74838A]"
+                onClick={() => setEditingStoreFull(null)}
+                className="w-9 h-9 rounded-full bg-[#F8FAFC] hover:bg-rose-50 hover:text-rose-600 flex items-center justify-center text-[#74838A] transition"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Live Store Card Preview */}
+            {/* Quick Live Preview Card */}
             <div className="bg-[#F8FAFC] p-3.5 rounded-2xl border border-[#E5EAED] space-y-2">
-              <span className="text-[11px] font-extrabold text-[#087E83] block">
-                معاينة بطاقة المتجر في الصفحة الرئيسية:
+              <span className="text-[11px] font-black text-[#087E83] block">
+                معاينة مباشرة لشكل المتجر في المنصة:
               </span>
               <StoreCard
                 previewMode
                 store={{
-                  id: editingStore.id || 'preview',
-                  owner_id: editingStore.owner_id || 'user-super-admin',
-                  name_ar: editingStore.name_ar || 'اسم المتجر',
-                  name_en: editingStore.name_en || editingStore.name_ar || 'اسم المتجر',
+                  id: editingStoreFull.storeId,
+                  owner_id: 'merchant',
+                  name_ar: editingStoreFull.name_ar || 'اسم المتجر',
+                  name_en: editingStoreFull.name_en || editingStoreFull.name_ar,
                   slug: 'preview',
-                  activity_type_ar: editingStore.activity_type_ar || 'نشاط المتجر',
-                  description_ar: editingStore.description_ar || '',
-                  category_id: 'cat-services',
-                  logo_url: editingStore.logo_url || '',
-                  cover_url: editingStore.cover_url || '',
+                  activity_type_ar: editingStoreFull.activity_type_ar || 'نشاط المتجر',
+                  description_ar: editingStoreFull.description_ar,
+                  category_id: editingStoreFull.category_id,
+                  logo_url: editingStoreFull.logo_url,
+                  cover_url: editingStoreFull.cover_url,
                   icon_bg_color: '#087E83',
                   icon_type: 'sparkles',
-                  location_inside_campus:
-                    editingStore.location_inside_campus || 'داخل الكلية',
-                  is_open: editingStore.is_open ?? true,
+                  location_inside_campus: editingStoreFull.location_inside_campus,
+                  is_open: true,
                   supports_pickup: true,
                   supports_delivery: true,
                   delivery_fee_lyd: 3,
-                  contact_phone: editingStore.contact_phone || '',
-                  status: 'active',
+                  contact_phone: editingStoreFull.contact_phone,
+                  status: editingStoreFull.status,
+                  store_code: editingStoreFull.store_code,
                   is_demo: false,
                   created_at: new Date().toISOString(),
                 }}
               />
             </div>
 
-            {/* Thumbnail & Banner Uploads */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold text-[#18343B]">
-                    صورة المتجر المصغرة
-                  </span>
-                  {editingStore.logo_url && (
+            {/* SECTION 1: STORE PROFILE & DETAILS */}
+            <div className="space-y-3 pt-1">
+              <h4 className="text-xs font-black text-[#087E83] uppercase tracking-wider flex items-center gap-1.5">
+                <StoreIcon className="w-4 h-4" />
+                <span>1. بيانات وهوية المتجر</span>
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    اسم المتجر (بالعربية) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingStoreFull.name_ar}
+                    onChange={(e) =>
+                      setEditingStoreFull({
+                        ...editingStoreFull,
+                        name_ar: e.target.value,
+                        name_en: e.target.value,
+                      })
+                    }
+                    placeholder="مثال: قرطاسية التفوق..."
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-bold text-[#18343B] focus:border-[#087E83] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    نوع النشاط التجاري *
+                  </label>
+                  <input
+                    type="text"
+                    value={editingStoreFull.activity_type_ar}
+                    onChange={(e) =>
+                      setEditingStoreFull({
+                        ...editingStoreFull,
+                        activity_type_ar: e.target.value,
+                      })
+                    }
+                    placeholder="مثال: مكتبة وطباعة / كافيه ومشروبات..."
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-bold text-[#18343B] focus:border-[#087E83] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    رمز المتجر الفريد (Store Code) *
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      dir="ltr"
+                      value={editingStoreFull.store_code}
+                      onChange={(e) =>
+                        setEditingStoreFull({
+                          ...editingStoreFull,
+                          store_code: e.target.value.toUpperCase(),
+                        })
+                      }
+                      placeholder="STR-104"
+                      className="flex-1 h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-mono font-black text-[#087E83] focus:border-[#087E83] outline-none"
+                    />
                     <button
                       type="button"
                       onClick={() =>
-                        setEditingStore({ ...editingStore, logo_url: '' })
+                        setEditingStoreFull({
+                          ...editingStoreFull,
+                          store_code: `STR-${Math.floor(1000 + Math.random() * 9000)}`,
+                        })
                       }
-                      className="text-[11px] text-rose-600 font-bold"
+                      className="px-3 h-10 rounded-xl bg-[#F8FAFC] border border-[#E5EAED] text-xs font-bold text-[#18343B] hover:bg-[#EAF3F4]"
+                      title="توليد رمز تلقائي"
                     >
-                      حذف
+                      توليد
                     </button>
-                  )}
+                  </div>
                 </div>
-                <label className="w-full h-9 px-3 rounded-xl bg-[#087E83] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>رفع صورة مصغرة</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleStoreLogoUpload}
-                    className="hidden"
-                  />
-                </label>
-                <input
-                  type="text"
-                  dir="ltr"
-                  value={editingStore.logo_url || ''}
-                  onChange={(e) =>
-                    setEditingStore({ ...editingStore, logo_url: e.target.value })
-                  }
-                  placeholder="أو رابط الصورة المصغرة..."
-                  className="w-full h-8 px-2.5 rounded-lg border border-[#E5EAED] bg-white text-[11px] font-en"
-                />
-              </div>
 
-              <div className="p-3 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold text-[#18343B]">
-                    صورة بانر المتجر
-                  </span>
-                  {editingStore.cover_url && (
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    الموقع داخل الحرم الجامعي
+                  </label>
+                  <input
+                    type="text"
+                    value={editingStoreFull.location_inside_campus}
+                    onChange={(e) =>
+                      setEditingStoreFull({
+                        ...editingStoreFull,
+                        location_inside_campus: e.target.value,
+                      })
+                    }
+                    placeholder="مثال: مبنى كلية الهندسة - الدور الأرضي"
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-semibold text-[#18343B] focus:border-[#087E83] outline-none"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    وصف المتجر ونبذة عنه
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={editingStoreFull.description_ar}
+                    onChange={(e) =>
+                      setEditingStoreFull({
+                        ...editingStoreFull,
+                        description_ar: e.target.value,
+                      })
+                    }
+                    placeholder="وصف مختصر يظهر للطلاب عن منتجات المتجر..."
+                    className="w-full p-2.5 rounded-xl border border-[#E5EAED] text-xs font-medium text-[#18343B] focus:border-[#087E83] outline-none resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 2: MERCHANT ACCOUNT & CREDENTIALS */}
+            <div className="space-y-3 pt-2 border-t border-[#E5EAED]">
+              <h4 className="text-xs font-black text-[#087E83] uppercase tracking-wider flex items-center gap-1.5">
+                <Lock className="w-4 h-4" />
+                <span>2. حساب التاجر وبيانات الدخول المستقلة</span>
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    اسم المستخدم (Username للدخول) *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      dir="ltr"
+                      value={editingStoreFull.username}
+                      onChange={(e) =>
+                        setEditingStoreFull({
+                          ...editingStoreFull,
+                          username: e.target.value.toLowerCase(),
+                        })
+                      }
+                      placeholder="store_lama"
+                      className="w-full h-10 pr-3 pl-3 rounded-xl border border-[#E5EAED] text-xs font-mono font-bold text-[#18343B] focus:border-[#087E83] outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    كلمة المرور الجديدة (أو اتركها فارغة دون تغيير)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      dir="ltr"
+                      value={editingStoreFull.new_password}
+                      onChange={(e) =>
+                        setEditingStoreFull({
+                          ...editingStoreFull,
+                          new_password: e.target.value,
+                        })
+                      }
+                      placeholder="•••••••• أو كلمة مرور جديدة"
+                      className="flex-1 h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-mono font-bold text-[#18343B] focus:border-[#087E83] outline-none"
+                    />
                     <button
                       type="button"
                       onClick={() =>
-                        setEditingStore({ ...editingStore, cover_url: '' })
+                        setEditingStoreFull({
+                          ...editingStoreFull,
+                          new_password: `CM@${Math.floor(1000 + Math.random() * 9000)}`,
+                        })
                       }
-                      className="text-[11px] text-rose-600 font-bold"
+                      className="px-2.5 h-10 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[11px] font-bold shrink-0"
+                      title="توليد كلمة مرور عشوائية فورية"
                     >
-                      حذف
+                      توليد عشوائي
                     </button>
-                  )}
+                  </div>
                 </div>
-                <label className="w-full h-9 px-3 rounded-xl bg-[#087E83] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>رفع بانر المتجر</span>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    اسم صاحب المتجر (المالك)
+                  </label>
                   <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleStoreCoverUpload}
-                    className="hidden"
+                    type="text"
+                    value={editingStoreFull.owner_full_name}
+                    onChange={(e) =>
+                      setEditingStoreFull({
+                        ...editingStoreFull,
+                        owner_full_name: e.target.value,
+                      })
+                    }
+                    placeholder="اسم التاجر الرباعي..."
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-semibold text-[#18343B] outline-none"
                   />
-                </label>
-                <input
-                  type="text"
-                  dir="ltr"
-                  value={editingStore.cover_url || ''}
-                  onChange={(e) =>
-                    setEditingStore({ ...editingStore, cover_url: e.target.value })
-                  }
-                  placeholder="أو رابط بانر المتجر..."
-                  className="w-full h-8 px-2.5 rounded-lg border border-[#E5EAED] bg-white text-[11px] font-en"
-                />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    رقم هاتف المتجر / التاجر
+                  </label>
+                  <input
+                    type="tel"
+                    dir="ltr"
+                    value={editingStoreFull.contact_phone}
+                    onChange={(e) =>
+                      setEditingStoreFull({
+                        ...editingStoreFull,
+                        contact_phone: e.target.value,
+                        owner_phone: e.target.value,
+                      })
+                    }
+                    placeholder="0910000000"
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-bold text-[#18343B] outline-none"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-[#18343B] mb-1">
-                  اسم المتجر *
-                </label>
-                <input
-                  type="text"
-                  value={editingStore.name_ar || ''}
-                  onChange={(e) =>
-                    setEditingStore({
-                      ...editingStore,
-                      name_ar: e.target.value,
-                      name_en: e.target.value,
-                    })
-                  }
-                  placeholder="اسم المتجر..."
-                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-[#18343B] mb-1">
-                  نوع النشاط *
-                </label>
-                <input
-                  type="text"
-                  value={editingStore.activity_type_ar || ''}
-                  onChange={(e) =>
-                    setEditingStore({
-                      ...editingStore,
-                      activity_type_ar: e.target.value,
-                    })
-                  }
-                  placeholder="مثال: مأكولات ومشروبات / مكتبة وقرطاسية"
-                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-[#18343B] mb-1">
-                  وصف المتجر
-                </label>
-                <input
-                  type="text"
-                  value={editingStore.description_ar || ''}
-                  onChange={(e) =>
-                    setEditingStore({
-                      ...editingStore,
-                      description_ar: e.target.value,
-                    })
-                  }
-                  placeholder="وصف مختصر للمتجر..."
-                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-[#18343B] mb-1">
-                  موقع المتجر داخل الجامعة
-                </label>
-                <input
-                  type="text"
-                  value={editingStore.location_inside_campus || ''}
-                  onChange={(e) =>
-                    setEditingStore({
-                      ...editingStore,
-                      location_inside_campus: e.target.value,
-                    })
-                  }
-                  className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs"
-                />
+            {/* SECTION 3: STORE LOGO & COVER BANNER */}
+            <div className="space-y-3 pt-2 border-t border-[#E5EAED]">
+              <h4 className="text-xs font-black text-[#087E83] uppercase tracking-wider flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4" />
+                <span>3. صور المتجر والشعار (مع المعاينة الحية)</span>
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Logo Upload */}
+                <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-[#18343B]">
+                      الشعار الدائري للمتجر
+                    </span>
+                    {editingStoreFull.logo_url && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditingStoreFull({ ...editingStoreFull, logo_url: '' })
+                        }
+                        className="text-[11px] text-rose-600 font-bold hover:underline"
+                      >
+                        حذف
+                      </button>
+                    )}
+                  </div>
+                  <label className="w-full h-9 px-3 rounded-xl bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs transition">
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>رفع شعار من الجهاز</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleEditStoreLogoUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={editingStoreFull.logo_url}
+                    onChange={(e) =>
+                      setEditingStoreFull({
+                        ...editingStoreFull,
+                        logo_url: e.target.value,
+                      })
+                    }
+                    placeholder="أو ضع رابط صورة الشعار..."
+                    className="w-full h-8 px-2.5 rounded-lg border border-[#E5EAED] bg-white text-[11px] font-mono"
+                  />
+                </div>
+
+                {/* Banner Upload */}
+                <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-[#18343B]">
+                      صورة البانر العريض
+                    </span>
+                    {editingStoreFull.cover_url && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditingStoreFull({ ...editingStoreFull, cover_url: '' })
+                        }
+                        className="text-[11px] text-rose-600 font-bold hover:underline"
+                      >
+                        حذف
+                      </button>
+                    )}
+                  </div>
+                  <label className="w-full h-9 px-3 rounded-xl bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs transition">
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>رفع بانر من الجهاز</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleEditStoreCoverUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={editingStoreFull.cover_url}
+                    onChange={(e) =>
+                      setEditingStoreFull({
+                        ...editingStoreFull,
+                        cover_url: e.target.value,
+                      })
+                    }
+                    placeholder="أو ضع رابط صورة البانر..."
+                    className="w-full h-8 px-2.5 rounded-lg border border-[#E5EAED] bg-white text-[11px] font-mono"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-2">
+            {/* SECTION 4: STORE STATUS & CONTROLS */}
+            <div className="space-y-3 pt-2 border-t border-[#E5EAED]">
+              <h4 className="text-xs font-black text-[#087E83] uppercase tracking-wider flex items-center gap-1.5">
+                <Sliders className="w-4 h-4" />
+                <span>4. حالة اعتماد المتجر والظهور</span>
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    حالة اعتماد المتجر
+                  </label>
+                  <select
+                    value={editingStoreFull.status}
+                    onChange={(e) =>
+                      setEditingStoreFull({
+                        ...editingStoreFull,
+                        status: e.target.value as Store['status'],
+                      })
+                    }
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-bold text-[#18343B] bg-white outline-none"
+                  >
+                    <option value="active">مفعل ومعتمد (نشط)</option>
+                    <option value="pending">قيد المراجعة (بانتظار الموافقة)</option>
+                    <option value="suspended">موقوف / معطل</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    حالة استقبال الطلبات
+                  </label>
+                  <select
+                    value={editingStoreFull.visibility_status}
+                    onChange={(e) =>
+                      setEditingStoreFull({
+                        ...editingStoreFull,
+                        visibility_status: e.target.value as any,
+                      })
+                    }
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-bold text-[#18343B] bg-white outline-none"
+                  >
+                    <option value="active">يستقبل الطلبات بشكل طبيعي</option>
+                    <option value="pause_orders">إيقاف مؤقت للطلبات</option>
+                    <option value="closed_temp">مغلق مؤقتاً</option>
+                    <option value="hidden">مخفي من القوائم</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    حالة حساب التاجر
+                  </label>
+                  <select
+                    value={editingStoreFull.is_account_active ? 'active' : 'inactive'}
+                    onChange={(e) =>
+                      setEditingStoreFull({
+                        ...editingStoreFull,
+                        is_account_active: e.target.value === 'active',
+                      })
+                    }
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-bold text-[#18343B] bg-white outline-none"
+                  >
+                    <option value="active">حساب نشط ومصرح له بالدخول</option>
+                    <option value="inactive">حساب معطل وممنوع من الدخول</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Bottom Actions */}
+            <div className="flex items-center gap-3 pt-3 border-t border-[#E5EAED]">
               <button
                 type="button"
                 onClick={() => {
-                  if (!editingStore.name_ar?.trim()) return;
-                  adminCreateOrUpdateStore(editingStore);
-                  setEditingStore(null);
+                  if (!editingStoreFull.name_ar.trim()) {
+                    showToast('يرجى إدخال اسم المتجر', 'error');
+                    return;
+                  }
+                  const res = adminFullUpdateStoreAndMerchant(editingStoreFull);
+                  if (res.success) {
+                    setEditingStoreFull(null);
+                  } else {
+                    showToast(res.error || 'تعذر حفظ البيانات', 'error');
+                  }
                 }}
-                className="flex-1 h-11 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs sm:text-sm font-extrabold"
+                className="flex-1 h-12 rounded-full bg-[#087E83] hover:bg-[#06666A] active:scale-98 text-white text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 shadow-sm transition"
               >
-                حفظ بيانات المتجر
+                <Check className="w-4 h-4 stroke-[2.5]" />
+                <span>حفظ التعديلات في قاعدة البيانات فورياً</span>
               </button>
+
               <button
                 type="button"
-                onClick={() => setEditingStore(null)}
-                className="px-6 h-11 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-[#74838A] text-xs font-bold"
+                onClick={() => setEditingStoreFull(null)}
+                className="px-6 h-12 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-[#74838A] hover:text-[#18343B] text-xs font-bold transition"
               >
                 إلغاء
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUPER ADMIN DIRECT CREATE STORE & MERCHANT ACCOUNT MODAL */}
+      {isCreatingStoreModal && (
+        <div className="fixed inset-0 z-50 bg-[#18343B]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white w-full max-w-xl rounded-[32px] p-5 sm:p-7 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto border border-[#E5EAED] animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-[#E5EAED] pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-[#087E83] text-white flex items-center justify-center">
+                  <Plus className="w-6 h-6 stroke-[2.5]" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-[#18343B]">
+                    إنشاء متجر وحساب تاجر جديد
+                  </h3>
+                  <p className="text-xs text-[#74838A]">
+                    إضافة المتجر وتعيين بيانات الدخول الخاصة به مباشرة
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsCreatingStoreModal(false)}
+                className="w-9 h-9 rounded-full bg-[#F8FAFC] hover:bg-rose-50 hover:text-rose-600 flex items-center justify-center text-[#74838A] transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!newStoreForm.name_ar.trim() || !newStoreForm.username.trim() || !newStoreForm.password.trim()) {
+                  showToast('يرجى ملء جميع الحقول المطلوبة', 'error');
+                  return;
+                }
+                const res = adminDirectCreateStoreAndMerchant(newStoreForm);
+                if (res.success) {
+                  setIsCreatingStoreModal(false);
+                } else {
+                  showToast(res.error || 'فشل إنشاء المتجر', 'error');
+                }
+              }}
+              className="space-y-4"
+            >
+              {/* Store Basic Data */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    اسم المتجر *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newStoreForm.name_ar}
+                    onChange={(e) =>
+                      setNewStoreForm({
+                        ...newStoreForm,
+                        name_ar: e.target.value,
+                        name_en: e.target.value,
+                      })
+                    }
+                    placeholder="مثال: متجر لاما للقرطاسية"
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-bold text-[#18343B] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    نوع النشاط التجاري *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newStoreForm.activity_type_ar}
+                    onChange={(e) =>
+                      setNewStoreForm({
+                        ...newStoreForm,
+                        activity_type_ar: e.target.value,
+                      })
+                    }
+                    placeholder="مثال: أدوات طبية / قرطاسية / خدمات"
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-bold text-[#18343B] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    اسم صاحب المتجر (المالك) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newStoreForm.owner_full_name}
+                    onChange={(e) =>
+                      setNewStoreForm({
+                        ...newStoreForm,
+                        owner_full_name: e.target.value,
+                      })
+                    }
+                    placeholder="اسم التاجر الرباعي..."
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-semibold text-[#18343B] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    رقم الهاتف *
+                  </label>
+                  <input
+                    type="tel"
+                    dir="ltr"
+                    required
+                    value={newStoreForm.contact_phone}
+                    onChange={(e) =>
+                      setNewStoreForm({
+                        ...newStoreForm,
+                        contact_phone: e.target.value,
+                      })
+                    }
+                    placeholder="0910000000"
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-bold text-[#18343B] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    اسم المستخدم (Username للدخول) *
+                  </label>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    required
+                    value={newStoreForm.username}
+                    onChange={(e) =>
+                      setNewStoreForm({
+                        ...newStoreForm,
+                        username: e.target.value.toLowerCase(),
+                      })
+                    }
+                    placeholder="store_username"
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-mono font-bold text-[#18343B] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    رمز المتجر (Store Code) *
+                  </label>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    required
+                    value={newStoreForm.store_code}
+                    onChange={(e) =>
+                      setNewStoreForm({
+                        ...newStoreForm,
+                        store_code: e.target.value.toUpperCase(),
+                      })
+                    }
+                    placeholder="STR-104"
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-mono font-black text-[#087E83] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    كلمة المرور الأولية للتاجر *
+                  </label>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    required
+                    value={newStoreForm.password}
+                    onChange={(e) =>
+                      setNewStoreForm({
+                        ...newStoreForm,
+                        password: e.target.value,
+                      })
+                    }
+                    placeholder="CM@XXXX"
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-mono font-black text-[#18343B] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#18343B] mb-1">
+                    البريد الإلكتروني للتاجر
+                  </label>
+                  <input
+                    type="email"
+                    dir="ltr"
+                    value={newStoreForm.owner_email}
+                    onChange={(e) =>
+                      setNewStoreForm({
+                        ...newStoreForm,
+                        owner_email: e.target.value,
+                      })
+                    }
+                    placeholder="merchant@campusmarket.ly"
+                    className="w-full h-10 px-3 rounded-xl border border-[#E5EAED] text-xs font-semibold text-[#18343B] outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Uploads */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div className="p-3 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] space-y-1.5">
+                  <span className="text-[11px] font-bold text-[#18343B] block">شعار المتجر</span>
+                  <label className="w-full h-9 rounded-xl bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>رفع شعار</span>
+                    <input type="file" accept="image/*" onChange={handleNewStoreLogoUpload} className="hidden" />
+                  </label>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-[#F8FAFC] border border-[#E5EAED] space-y-1.5">
+                  <span className="text-[11px] font-bold text-[#18343B] block">بانر المتجر</span>
+                  <label className="w-full h-9 rounded-xl bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>رفع بانر</span>
+                    <input type="file" accept="image/*" onChange={handleNewStoreCoverUpload} className="hidden" />
+                  </label>
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex items-center gap-3 pt-3 border-t border-[#E5EAED]">
+                <button
+                  type="submit"
+                  className="flex-1 h-12 rounded-full bg-[#087E83] hover:bg-[#06666A] active:scale-98 text-white text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 shadow-sm transition"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                  <span>إنشاء وتفعيل المتجر والحساب فورياً</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingStoreModal(false)}
+                  className="px-6 h-12 rounded-full bg-[#F8FAFC] border border-[#E5EAED] text-[#74838A] hover:text-[#18343B] text-xs font-bold transition"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

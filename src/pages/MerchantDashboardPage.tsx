@@ -77,6 +77,8 @@ export const MerchantDashboardPage: React.FC = () => {
     merchantReplyToReview,
     updateStoreVisibility,
     showToast,
+    isImpersonating,
+    adminReturnFromImpersonation,
   } = useMarketplace();
 
   const [activeTab, setActiveTab] = useState<MerchantTab>('overview');
@@ -333,6 +335,28 @@ export const MerchantDashboardPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-12">
+      {/* Super Admin Impersonation Floating Bar */}
+      {isImpersonating && (
+        <div className="bg-[#18343B] text-white px-5 py-3 rounded-2xl flex items-center justify-between gap-4 shadow-lg border-2 border-[#F3C95B] animate-in fade-in">
+          <div className="flex items-center gap-2.5 text-xs font-bold">
+            <span className="w-3 h-3 rounded-full bg-[#F3C95B] animate-pulse" />
+            <span>
+              أنت تتصفح وتدير متجر <strong className="text-[#36A6A6]">"{merchantStore.name_ar}"</strong> بصلاحية الإدارة الرئيسية (Super Admin)
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              adminReturnFromImpersonation();
+              navigate('/admin');
+            }}
+            className="px-4 py-1.5 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-black transition shadow-sm active:scale-95 flex items-center gap-1.5"
+          >
+            <ShieldCheck className="w-4 h-4 text-[#F3C95B]" />
+            <span>العودة للوحة الإدارة المركزية</span>
+          </button>
+        </div>
+      )}
       {/* Top Header of Merchant Interface matching reference image */}
       <header className="bg-white rounded-[28px] px-6 py-4 border border-[#E5EAED] shadow-sm flex items-center justify-between gap-4">
         {/* Left side: Notification bell & quick actions */}

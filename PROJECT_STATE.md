@@ -50,14 +50,27 @@
       - Store visibility controls (`active`, `pause_orders`, `closed_temp`, `hidden`).
       - Customer reviews reply mechanism (`merchantReplyToReview`).
 
-### 3. واجهة الإدارة الرئيسية — Super Admin Interface
+### 3. واجهة الإدارة الرئيسية — Super Admin Omnipotent Control Suite
 - **Routes**: `/admin/login` (and `/admin-login`) & `/admin/dashboard` (and `/admin`).
-- **Dedicated Login Screen (`AdminLoginPage.tsx`)**:
-  - Dark obsidian executive theme (`#0F172A`), Shield icon, and master credentials.
-- **Admin Studio Dashboard (`AdminDashboardPage.tsx`)**:
-  - Real-time KPIs for students, stores, products, orders, and sales volume.
-  - Store management: Approve pending applications, issue/reset merchant credentials (`STR-XXXX`, username, temporary password), toggle store status, edit or delete stores.
-  - Global product catalog & order auditing across all campus stores.
+- **Comprehensive Store & Merchant Account Editing (`adminFullUpdateStoreAndMerchant`)**:
+  - Super Admin can modify all parameters of ANY store in one place:
+    - Store name (`name_ar`, `name_en`).
+    - Merchant Username (`@username`) with uniqueness enforcement.
+    - Store Code (`STR-XXXX`) with uniqueness enforcement.
+    - Password management: Enter custom password or instant 1-click random generator (`CM@XXXX`).
+    - Logo & Banner Cover: In-browser camera upload, automatic canvas compression, or image URL with live card preview.
+    - Activity type, location inside campus, contact phone, description, category.
+    - Store status: Active, Pending, Suspended.
+    - Order visibility status: Active, Paused, Closed temporarily, Hidden.
+    - Merchant User Account status: Active vs Inactive (ban/allow login).
+- **Direct Merchant & Store Creation (`adminDirectCreateStoreAndMerchant`)**:
+  - Super Admin can create a new store and its merchant credentials from scratch with one click, without needing an invite token.
+- **One-Click Store Impersonation (`adminImpersonateStore`)**:
+  - Super Admin can click "دخول كتاجر" on any store to jump directly into that store's merchant dashboard at `/merchant` to manage products, catalog, and orders without knowing the merchant's password.
+  - Floating Executive Return Banner: Displays `👁️ أنت تتصفح وتدير متجر "... " بصلاحية الإدارة الرئيسية — [العودة للوحة الإدارة المركزية]`.
+- **Strict Role & Data Isolation**:
+  - Merchants are strictly restricted to `currentUser.store_id` and have zero access to other stores or admin controls.
+  - Super Admin possesses omnipotent, central control across all stores, products, orders, and users.
 
 ---
 

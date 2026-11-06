@@ -213,6 +213,52 @@ interface MarketplaceContextType {
   adminPurgeDemoData: () => void;
   adminRestoreDemoData: () => void;
 
+  // Super Admin Full Store & Merchant Account Control
+  adminFullUpdateStoreAndMerchant: (data: {
+    storeId: string;
+    name_ar: string;
+    name_en?: string;
+    activity_type_ar?: string;
+    description_ar?: string;
+    location_inside_campus?: string;
+    contact_phone?: string;
+    category_id?: string;
+    logo_url?: string;
+    cover_url?: string;
+    store_code?: string;
+    status?: Store['status'];
+    visibility_status?: 'active' | 'pause_orders' | 'closed_temp' | 'hidden';
+    username?: string;
+    new_password?: string;
+    owner_full_name?: string;
+    owner_email?: string;
+    owner_phone?: string;
+    is_account_active?: boolean;
+  }) => { success: boolean; error?: string };
+
+  adminDirectCreateStoreAndMerchant: (data: {
+    name_ar: string;
+    name_en?: string;
+    activity_type_ar: string;
+    description_ar?: string;
+    location_inside_campus?: string;
+    contact_phone: string;
+    category_id?: string;
+    logo_url?: string;
+    cover_url?: string;
+    store_code?: string;
+    owner_full_name: string;
+    owner_email: string;
+    username: string;
+    password: string;
+    status?: Store['status'];
+  }) => { success: boolean; error?: string; storeId?: string };
+
+  adminImpersonateStore: (storeId: string) => { success: boolean; error?: string };
+  adminReturnFromImpersonation: () => void;
+  isImpersonating: boolean;
+  getStoreMerchantUser: (storeId: string) => User | undefined;
+
   // Global Toast message
   toastMessage: { text: string; type: 'success' | 'error' | 'info' } | null;
   showToast: (text: string, type?: 'success' | 'error' | 'info') => void;
@@ -314,6 +360,13 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   } | null>(null);
   const [cloudBooted, setCloudBooted] = useState(false);
   const [headerSearchQuery, setHeaderSearchQuery] = useState('');
+  const [adminImpersonatorId, setAdminImpersonatorId] = useState<string | null>(() =>
+    loadFromStorage('adminImpersonatorId', null)
+  );
+
+  useEffect(() => {
+    saveToStorage('adminImpersonatorId', adminImpersonatorId);
+  }, [adminImpersonatorId]);
 
   const showToast = (text: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToastMessage({ text, type });
@@ -1842,6 +1895,267 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     showToast('تم حذف المتجر وجميع منتجاته نهائياً من المنصة', 'info');
   };
 
+  const getStoreMerchantUser = (storeId: string): User | undefined => {
+    return users.find(
+      (u) => u.store_id === storeId || u.id === stores.find((s) => s.id === storeId)?.owner_id
+    );
+  };
+
+  const adminFullUpdateStoreAndMerchant = (data: {
+    storeId: string;
+    name_ar: string;
+    name_en?: string;
+    activity_type_ar?: string;
+    description_ar?: string;
+    location_inside_campus?: string;
+    contact_phone?: string;
+    category_id?: string;
+    logo_url?: string;
+    cover_url?: string;
+    store_code?: string;
+    status?: Store['status'];
+    visibility_status?: 'active' | 'pause_orders' | 'closed_temp' | 'hidden';
+    username?: string;
+    new_password?: string;
+    owner_full_name?: string;
+    owner_email?: string;
+    owner_phone?: string;
+    is_account_active?: boolean;
+  }) => {
+    if (!isAdmin) return { success: false, error: 'غير مصرح للمشرف فقط' };
+
+    const store = stores.find((s) => s.id === data.storeId);
+    if (!store) return { success: false, error: 'المتجر غير موجود' };
+
+    const merchantUser = getStoreMerchantUser(data.storeId);
+
+    // Validate username uniqueness if modified
+    if (data.username && data.username.trim()) {
+      const cleanU = data.username.trim().toLowerCase();
+      const conflict = users.find(
+        (u) => (!merchantUser || u.id !== merchantUser.id) && u.username && u.username.toLowerCase() === cleanU
+      );
+      if (conflict) {
+        return {
+          success: false,
+          error: 'اسم المستخدم هذا مستخدم بالفعل من قبل متجر آخر.',
+        };
+      }
+    }
+
+    // Validate store_code uniqueness if modified
+    if (data.store_code && data.store_code.trim()) {
+      const cleanCode = data.store_code.trim().toUpperCase();
+      const conflictStore = stores.find(
+        (s) => s.id !== data.storeId && s.store_code && s.store_code.toUpperCase() === cleanCode
+      );
+      if (conflictStore) {
+        return {
+          success: false,
+          error: 'رمز المتجر هذا مسجل بالفعل لمتجر آخر. يرجى اختيار رمز فريد.',
+        };
+      }
+    }
+
+    const cleanStoreCode = data.store_code ? data.store_code.trim().toUpperCase() : store.store_code;
+
+    // 1. Update Store Record
+    setStores((prev) =>
+      prev.map((s) => {
+        if (s.id !== data.storeId) return s;
+        return {
+          ...s,
+          name_ar: data.name_ar.trim(),
+          name_en: (data.name_en || data.name_ar).trim(),
+          activity_type_ar:
+            data.activity_type_ar !== undefined ? data.activity_type_ar.trim() : s.activity_type_ar,
+          description_ar:
+            data.description_ar !== undefined ? data.description_ar.trim() : s.description_ar,
+          location_inside_campus:
+            data.location_inside_campus !== undefined
+              ? data.location_inside_campus.trim()
+              : s.location_inside_campus,
+          contact_phone:
+            data.contact_phone !== undefined ? data.contact_phone.trim() : s.contact_phone,
+          category_id: data.category_id || s.category_id,
+          logo_url: data.logo_url !== undefined ? data.logo_url : s.logo_url,
+          cover_url: data.cover_url !== undefined ? data.cover_url : s.cover_url,
+          store_code: cleanStoreCode,
+          status: data.status || s.status,
+          visibility_status: data.visibility_status || s.visibility_status,
+        };
+      })
+    );
+
+    // 2. Update or Create Linked Merchant User Account
+    if (merchantUser) {
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id !== merchantUser.id) return u;
+          return {
+            ...u,
+            username: data.username ? data.username.trim().toLowerCase() : u.username,
+            full_name: data.owner_full_name ? data.owner_full_name.trim() : u.full_name,
+            email: data.owner_email ? data.owner_email.trim() : u.email,
+            phone: data.owner_phone ? data.owner_phone.trim() : data.contact_phone || u.phone,
+            password:
+              data.new_password && data.new_password.trim() ? data.new_password.trim() : u.password,
+            is_active: data.is_account_active !== undefined ? data.is_account_active : u.is_active,
+            role: 'merchant',
+            store_id: data.storeId,
+          };
+        })
+      );
+    } else {
+      const newMerchant: User = {
+        id: `user-merch-${Date.now()}`,
+        email: data.owner_email?.trim() || `${data.username || 'store'}@campusmarket.ly`,
+        phone: data.owner_phone?.trim() || data.contact_phone?.trim() || '0910000000',
+        full_name: data.owner_full_name?.trim() || data.name_ar.trim(),
+        role: 'merchant',
+        faculty_location_id: 'loc-main',
+        store_id: data.storeId,
+        username: data.username ? data.username.trim().toLowerCase() : `store_${Date.now()}`,
+        password:
+          data.new_password && data.new_password.trim() ? data.new_password.trim() : 'CM@1234',
+        must_change_password: false,
+        is_active: data.is_account_active !== undefined ? data.is_account_active : true,
+        created_at: new Date().toISOString(),
+      };
+      setUsers((prev) => [...prev, newMerchant]);
+    }
+
+    logAudit(
+      'تحديث شامل لمتجر وحسابه بواسطة المشرف',
+      'store',
+      data.storeId,
+      `تم تحديث بيانات المتجر ${data.name_ar} وحساب التاجر المرتبط به`
+    );
+    showToast(`تم حفظ وتحديث متجر ${data.name_ar} وبيانات حسابه بنجاح!`, 'success');
+    return { success: true };
+  };
+
+  const adminDirectCreateStoreAndMerchant = (data: {
+    name_ar: string;
+    name_en?: string;
+    activity_type_ar: string;
+    description_ar?: string;
+    location_inside_campus?: string;
+    contact_phone: string;
+    category_id?: string;
+    logo_url?: string;
+    cover_url?: string;
+    store_code?: string;
+    owner_full_name: string;
+    owner_email: string;
+    username: string;
+    password: string;
+    status?: Store['status'];
+  }) => {
+    if (!isAdmin) return { success: false, error: 'غير مصرح للمشرف فقط' };
+
+    const cleanUsername = data.username.trim().toLowerCase();
+    if (users.some((u) => u.username && u.username.toLowerCase() === cleanUsername)) {
+      return { success: false, error: 'اسم المستخدم هذا مسجل مسبقاً لمستخدم آخر.' };
+    }
+
+    const cleanStoreCode = (data.store_code || `STR-${Math.floor(1000 + Math.random() * 9000)}`)
+      .trim()
+      .toUpperCase();
+    if (stores.some((s) => s.store_code && s.store_code.toUpperCase() === cleanStoreCode)) {
+      return { success: false, error: 'رمز المتجر هذا مسجل مسبقاً لمتجر آخر.' };
+    }
+
+    const newStoreId = `store-${Date.now()}`;
+    const newUserId = `user-merch-${Date.now()}`;
+
+    const newStore: Store = {
+      id: newStoreId,
+      store_code: cleanStoreCode,
+      owner_id: newUserId,
+      name_ar: data.name_ar.trim(),
+      name_en: (data.name_en || data.name_ar).trim(),
+      slug: (data.name_en || data.name_ar).toLowerCase().replace(/[^a-z0-9]/g, '-'),
+      activity_type_ar: data.activity_type_ar.trim(),
+      description_ar: (data.description_ar || 'متجر طلابي معتمد داخل الحرم الجامعي').trim(),
+      location_inside_campus: (data.location_inside_campus || 'داخل الكلية').trim(),
+      contact_phone: data.contact_phone.trim(),
+      category_id: data.category_id || 'cat-services',
+      logo_url: (data.logo_url || '').trim(),
+      cover_url: (data.cover_url || '').trim(),
+      icon_bg_color: '#087E83',
+      icon_type: 'sparkles',
+      is_open: true,
+      supports_pickup: true,
+      supports_delivery: true,
+      delivery_fee_lyd: 3,
+      status: data.status || 'active',
+      visibility_status: 'active',
+      is_demo: false,
+      views_count: 0,
+      created_at: new Date().toISOString(),
+    };
+
+    const newMerchant: User = {
+      id: newUserId,
+      email: data.owner_email.trim(),
+      phone: data.contact_phone.trim(),
+      full_name: data.owner_full_name.trim(),
+      role: 'merchant',
+      faculty_location_id: 'loc-main',
+      store_id: newStoreId,
+      username: cleanUsername,
+      password: data.password.trim(),
+      must_change_password: false,
+      is_active: true,
+      created_at: new Date().toISOString(),
+    };
+
+    setStores((prev) => [newStore, ...prev]);
+    setUsers((prev) => [...prev, newMerchant]);
+
+    logAudit(
+      'إنشاء متجر وحساب تاجر جديد',
+      'store',
+      newStoreId,
+      `أنشأ المشرف متجر ${newStore.name_ar} مع حساب التاجر @${cleanUsername}`
+    );
+    showToast(`تم إنشاء وتفعيل متجر ${newStore.name_ar} بنجاح!`, 'success');
+    return { success: true, storeId: newStoreId };
+  };
+
+  const adminImpersonateStore = (storeId: string) => {
+    if (!isAdmin) return { success: false, error: 'غير مصرح' };
+    const store = stores.find((s) => s.id === storeId);
+    if (!store) return { success: false, error: 'المتجر غير موجود' };
+
+    let merchantUser = getStoreMerchantUser(storeId);
+    if (!merchantUser) {
+      // Create user on the fly if store has no user
+      adminIssueMerchantCredentials(storeId);
+      merchantUser = getStoreMerchantUser(storeId);
+    }
+
+    if (!merchantUser) {
+      return { success: false, error: 'تعذر العثور على حساب التاجر لهذا المتجر' };
+    }
+
+    setAdminImpersonatorId(currentUser?.id || 'user-super-admin');
+    setCurrentUserId(merchantUser.id);
+    logAudit('الدخول كتاجر', 'store', storeId, `دخل المشرف إلى متجر ${store.name_ar}`);
+    showToast(`أنت الآن في لوحة متجر "${store.name_ar}" بصلاحية المشرف`, 'info');
+    return { success: true };
+  };
+
+  const adminReturnFromImpersonation = () => {
+    const adminId = adminImpersonatorId || 'user-super-admin';
+    setAdminImpersonatorId(null);
+    setCurrentUserId(adminId);
+    showToast('تمت العودة بنجاح إلى لوحة الإدارة الرئيسية (Super Admin)', 'success');
+  };
+
+  const isImpersonating = Boolean(adminImpersonatorId);
+
   const adminToggleProductVisibility = (productId: string, is_active: boolean) => {
     if (!isAdmin) return;
     setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, is_active } : p)));
@@ -2031,6 +2345,12 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         adminModerateReview,
         adminPurgeDemoData,
         adminRestoreDemoData,
+        adminFullUpdateStoreAndMerchant,
+        adminDirectCreateStoreAndMerchant,
+        adminImpersonateStore,
+        adminReturnFromImpersonation,
+        isImpersonating,
+        getStoreMerchantUser,
         toastMessage,
         showToast,
       }}
