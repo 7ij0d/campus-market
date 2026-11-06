@@ -178,9 +178,64 @@ export const AppNavigation: React.FC<{ children?: React.ReactNode }> = ({
       </header>
 
       {/* Main Centered Content Area */}
-      <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 pt-5 pb-24 lg:pb-12">
+      <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 pt-5 pb-16">
         {children}
       </div>
+
+      {/* Global Footer with Quick Gateway Portals */}
+      <footer className="bg-white border-t border-[#E5EAED] py-8 px-4 sm:px-6 mb-16 lg:mb-0">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-right">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#EAF3F4] text-[#087E83] flex items-center justify-center">
+              <GraduationCap className="w-5 h-5 stroke-[2.2]" />
+            </div>
+            <div>
+              <div className="text-sm font-black text-[#18343B]">CampusMarket</div>
+              <div className="text-[11px] text-[#74838A] font-bold">سوق الكلية الجامعي</div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="px-3 py-1.5 rounded-full text-[#18343B] hover:text-[#087E83] hover:bg-[#F8FAFC] transition"
+            >
+              الرئيسية
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/stores')}
+              className="px-3 py-1.5 rounded-full text-[#18343B] hover:text-[#087E83] hover:bg-[#F8FAFC] transition"
+            >
+              المتاجر
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/register-store')}
+              className="px-3 py-1.5 rounded-full text-[#087E83] hover:bg-[#EAF3F4] transition"
+            >
+              تسجيل متجر جديد
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/merchant/login')}
+              className="px-3 py-1.5 rounded-full bg-[#EAF3F4] hover:bg-[#D5EAE9] text-[#087E83] font-extrabold transition flex items-center gap-1.5"
+            >
+              <Store className="w-3.5 h-3.5" />
+              <span>دخول التجار</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/login')}
+              className="px-3 py-1.5 rounded-full bg-[#18343B] hover:bg-[#22444C] text-white font-extrabold transition flex items-center gap-1.5 shadow-2xs"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-[#F3C95B]" />
+              <span>دخول الإدارة</span>
+            </button>
+          </div>
+        </div>
+      </footer>
 
       {/* Mobile Bottom Navigation Bar */}
       <nav

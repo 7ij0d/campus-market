@@ -61,9 +61,14 @@
 
 ---
 
-## 3. URLs & Direct Access
+## 3. URLs & Direct Access (GitHub Pages SPA Bridge)
 - **واجهة الزبائن والطلبة**: `https://7ij0d.github.io/campus-market/#/`
-- **دخول أصحاب المتاجر**: `https://7ij0d.github.io/campus-market/#/merchant/login`
-- **لوحة تحكم المتجر**: `https://7ij0d.github.io/campus-market/#/merchant/dashboard`
-- **دخول الإدارة الرئيسية**: `https://7ij0d.github.io/campus-market/#/admin/login`
-- **لوحة الإدارة الرئيسية**: `https://7ij0d.github.io/campus-market/#/admin/dashboard`
+- **دخول أصحاب المتاجر**: `https://7ij0d.github.io/campus-market/#/merchant/login` (أو مباشرة `https://7ij0d.github.io/campus-market/merchant/login`)
+- **لوحة تحكم المتجر**: `https://7ij0d.github.io/campus-market/#/merchant`
+- **دخول الإدارة الرئيسية**: `https://7ij0d.github.io/campus-market/#/admin/login` (أو مباشرة `https://7ij0d.github.io/campus-market/admin/login`)
+- **لوحة الإدارة الرئيسية**: `https://7ij0d.github.io/campus-market/#/admin`
+
+## 4. Routing & Deep-Linking Fixes Verified
+- Added `public/404.html` SPA routing bridge to automatically map direct paths to React Router routes on GitHub Pages.
+- Auto-guarded `/admin` and `/merchant` to redirect unauthenticated users directly to their login screens (`/admin/login` and `/merchant/login`).
+- Added Global Footer and Account page gateway buttons (`دخول التجار` و `دخول الإدارة`) for 1-click access inside the app without typing URLs.

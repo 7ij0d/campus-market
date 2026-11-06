@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import {
   Home,
   Store as StoreIcon,
@@ -318,45 +318,9 @@ export const MerchantDashboardPage: React.FC = () => {
     }
   };
 
-  // Guard: If not logged in as a merchant, show isolated login prompt
+  // Guard: If not logged in as a merchant, immediately navigate to merchant login
   if (!currentUser || currentUser.role !== 'merchant' || !merchantStore) {
-    return (
-      <div className="py-16 px-4 max-w-md mx-auto text-center">
-        <div className="bg-white rounded-[32px] p-8 border border-[#E5EAED] shadow-xl space-y-5">
-          <div className="w-16 h-16 rounded-2xl bg-[#EAF3F4] text-[#087E83] flex items-center justify-center mx-auto shadow-sm">
-            <StoreIcon className="w-9 h-9 stroke-[1.8]" />
-          </div>
-
-          <div className="space-y-2">
-            <h1 className="text-xl font-black text-[#18343B]">
-              واجهة أصحاب المتاجر — CampusMarket
-            </h1>
-            <p className="text-xs text-[#74838A] leading-relaxed">
-              هذه الواجهة مستقلة ومخصصة لأصحاب المتاجر لإدارة المنتجات والطلبات والبيانات. يرجى تسجيل الدخول بحساب متجرك للمتابعة.
-            </p>
-          </div>
-
-          <div className="pt-2 space-y-3">
-            <button
-              type="button"
-              onClick={() => navigate('/merchant/login')}
-              className="w-full h-12 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 shadow-sm transition active:scale-98"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>دخول أصحاب المتاجر</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate('/register-store')}
-              className="w-full h-11 rounded-full bg-white hover:bg-[#F8FAFC] border border-[#E5EAED] text-[#18343B] text-xs font-extrabold transition"
-            >
-              تقديم طلب اشتراك متجر جديد
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    return <Navigate to="/merchant/login" replace />;
   }
 
   // Filtered orders for tab

@@ -287,11 +287,20 @@ export const AccountPage: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => navigate('/merchant-login')}
+                onClick={() => navigate('/merchant/login')}
                 className="w-full h-10 rounded-full bg-[#EAF3F4] hover:bg-[#DCEBED] text-[#087E83] text-xs font-extrabold flex items-center justify-center gap-1.5 transition"
               >
                 <StoreIcon className="w-3.5 h-3.5" />
                 <span>دخول أصحاب المتاجر</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/admin/login')}
+                className="w-full h-10 rounded-full bg-[#18343B] hover:bg-[#22444C] text-white text-xs font-extrabold flex items-center justify-center gap-1.5 transition shadow-2xs"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-[#F3C95B]" />
+                <span>دخول إدارة المنصة</span>
               </button>
 
               <button

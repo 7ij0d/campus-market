@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import {
   ShieldCheck,
   Store as StoreIcon,
@@ -214,35 +214,7 @@ export const AdminDashboardPage: React.FC = () => {
   };
 
   if (!isAdmin) {
-    return (
-      <div className="py-10 px-4">
-        <div className="max-w-lg mx-auto bg-white rounded-3xl p-6 border border-[#E5EAED] shadow-card text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#EAF3F4] text-[#087E83] flex items-center justify-center mx-auto">
-            <ShieldCheck className="w-7 h-7" />
-          </div>
-          <h1 className="text-base font-extrabold text-[#18343B]">
-            لوحة تحكم إدارة المنصة — CampusMarket
-          </h1>
-          <p className="text-xs text-[#74838A]">
-            اضغط بالأسفل للدخول إلى لوحة الإدارة المركزية وإدارة المتاجر وصورها والمنتجات والبانر الرئيسي:
-          </p>
-          <button
-            type="button"
-            onClick={() => switchQuickAccount('user-super-admin')}
-            className="w-full h-11 rounded-full bg-[#087E83] hover:bg-[#06666A] text-white text-xs font-extrabold shadow-xs"
-          >
-            الدخول كمدير المنصة (Admin)
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            className="text-xs font-bold text-[#74838A] hover:underline block mx-auto"
-          >
-            العودة للصفحة الرئيسية
-          </button>
-        </div>
-      </div>
-    );
+    return <Navigate to="/admin/login" replace />;
   }
 
   return (
